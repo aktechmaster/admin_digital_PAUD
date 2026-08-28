@@ -379,17 +379,102 @@
     let currentActiveDataKey = null;
     let activeRenderedData = [];
 
-    // Helper Pembaca Properti Fleksibel (Mengabaikan Kapital / Spasi)
-    function getValueFromObj(obj, keys) {
-        if (!obj) return '';
-        const objKeys = Object.keys(obj);
-        for (let targetKey of keys) {
-            const foundKey = objKeys.find(k => k.trim().toLowerCase() === targetKey.toLowerCase());
-            if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
-                return obj[foundKey];
+    // 1. UNIVERSAL ELEMENT FINDER
+    // Mencari elemen input/select di dalam modal berdasarkan ID, Name, atau Teks Label
+    function getFormField(modal, labelKeywords, possibleIds) {
+        if (!modal) modal = document;
+        
+        // A. Cari berdasarkan ID langsung
+        for (let id of possibleIds) {
+            let el = modal.querySelector(`#${id}`);
+            if (el) return el;
+        }
+
+        // B. Cari berdasarkan atribut name / id partial
+        for (let id of possibleIds) {
+            let el = modal.querySelector(`[name="${id}"], [id*="${id}"]`);
+            if (el) return el;
+        }
+
+        // C. Cari berdasarkan Teks Label di sebelahnya/pembungkusnya
+        const labels = Array.from(modal.querySelectorAll('label'));
+        for (let label of labels) {
+            const text = label.textContent.toLowerCase();
+            if (labelKeywords.some(kw => text.includes(kw.toLowerCase()))) {
+                let el = label.querySelector('input, select, textarea');
+                if (el) return el;
+                
+                let parent = label.parentElement;
+                if (parent) {
+                    el = parent.querySelector('input, select, textarea');
+                    if (el) return el;
+                }
+            }
+        }
+        return null;
+    }
+
+    // 2. UNIVERSAL PROPERTY EXTRACTOR
+    // Mencari nilai properti dari objek data tanpa peduli kapitalisasi huruf
+    function getPropValue(obj, candidates) {
+        if (!obj || typeof obj !== 'object') return '';
+        const keys = Object.keys(obj);
+        
+        for (let cand of candidates) {
+            const candClean = cand.toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (let key of keys) {
+                const keyClean = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (keyClean === candClean || keyClean.includes(candClean) || candClean.includes(keyClean)) {
+                    if (obj[key] !== undefined && obj[key] !== null) {
+                        return String(obj[key]).trim();
+                    }
+                }
             }
         }
         return '';
+    }
+
+    // 3. SMART SELECT DROPDOWN SETTER
+    // Mencocokkan nilai 'L' / 'P' / nama kelas ke opsi dropdown <select>
+    function setSelectValue(selectEl, val) {
+        if (!selectEl) return;
+        if (!val) {
+            selectEl.selectedIndex = 0;
+            return;
+        }
+        const cleanVal = String(val).toLowerCase().trim();
+        let matched = false;
+
+        // Pencocokan langsung nilai value
+        for (let i = 0; i < selectEl.options.length; i++) {
+            const opt = selectEl.options[i];
+            if (opt.value.toLowerCase().trim() === cleanVal) {
+                selectEl.selectedIndex = i;
+                matched = true;
+                break;
+            }
+        }
+
+        // Pencocokan teks tampilan / kata kunci (misal 'L' ke 'Laki-laki (L)')
+        if (!matched) {
+            for (let i = 0; i < selectEl.options.length; i++) {
+                const opt = selectEl.options[i];
+                const optVal = opt.value.toLowerCase();
+                const optText = opt.textContent.toLowerCase();
+
+                if (optVal.includes(cleanVal) || optText.includes(cleanVal) ||
+                    (cleanVal === 'l' && (optVal.includes('laki') || optText.includes('laki'))) ||
+                    (cleanVal === 'p' && (optVal.includes('perem') || optText.includes('perem')))) {
+                    selectEl.selectedIndex = i;
+                    matched = true;
+                    break;
+                }
+            }
+        }
+
+        if (!matched && selectEl.options.length > 0) {
+            selectEl.selectedIndex = 0;
+        }
     }
 
     // Initialize App
@@ -403,10 +488,9 @@
         const syncText = document.getElementById('sync-text');
         const refreshIcon = document.getElementById('refresh-icon');
 
-        // UI State Loading
-        statusEl.className = "flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-semibold text-amber-700";
-        syncText.textContent = "Syncing...";
-        refreshIcon.classList.add('fa-spin');
+        if (statusEl) statusEl.className = "flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-semibold text-amber-700";
+        if (syncText) syncText.textContent = "Syncing...";
+        if (refreshIcon) refreshIcon.classList.add('fa-spin');
 
         try {
             const response = await fetch(API_URL);
@@ -415,23 +499,20 @@
             if (data && typeof data === 'object') {
                 globalState.result = data;
 
-                // Alias data siswa & biodata
                 const listSiswa = data.data || data.dataSiswa || data.siswa || data.pesertaDidik || [];
                 const biodataObj = data.biodata || data.guru || {};
                 const rekapKelasObj = data.rekapKelas || {};
                 
-                // 1. Kalkulasi Siswa per Unit
-                const siswaUnit1 = listSiswa.filter(s => String(s.unit || s.unit_sekolah || '').includes('1') || s.unit === "PAUD 1").length;
-                const siswaUnit2 = listSiswa.filter(s => String(s.unit || s.unit_sekolah || '').includes('2') || s.unit === "PAUD 2").length;
+                const siswaUnit1 = listSiswa.filter(s => String(getPropValue(s, ['unit', 'unit_sekolah'])).includes('1') || getPropValue(s, ['unit']) === "PAUD 1").length;
+                const siswaUnit2 = listSiswa.filter(s => String(getPropValue(s, ['unit', 'unit_sekolah'])).includes('2') || getPropValue(s, ['unit']) === "PAUD 2").length;
 
-                // 2. Kalkulasi Kelompok per Unit
                 const kelompokUnit1Set = new Set();
                 const kelompokUnit2Set = new Set();
 
                 if (Array.isArray(listSiswa)) {
                     listSiswa.forEach(item => {
-                        const kelas = item.kelas || item.kelompok;
-                        const unit = String(item.unit || '');
+                        const kelas = getPropValue(item, ['kelas', 'kelompok']);
+                        const unit = String(getPropValue(item, ['unit', 'unit_sekolah']));
                         if (kelas) {
                             if (unit.includes('1') || unit === "PAUD 1") kelompokUnit1Set.add(kelas);
                             else if (unit.includes('2') || unit === "PAUD 2") kelompokUnit2Set.add(kelas);
@@ -439,7 +520,6 @@
                     });
                 }
 
-                // Fallback pencarian kelompok via Rekap Kelas jika listSiswa kosong
                 if (kelompokUnit1Set.size === 0 && kelompokUnit2Set.size === 0) {
                     Object.keys(rekapKelasObj).forEach(k => {
                         const item = rekapKelasObj[k];
@@ -449,7 +529,6 @@
                     });
                 }
 
-                // 3. Kalkulasi Guru per Unit
                 let guruUnit1 = 0;
                 let guruUnit2 = 0;
                 Object.values(biodataObj).forEach(guru => {
@@ -458,7 +537,6 @@
                     else if (unit.includes('2') || unit === "PAUD 2") guruUnit2++;
                 });
 
-                // Set globalState.summary
                 globalState.summary = {
                     guruUnit1: guruUnit1,
                     kelompokUnit1: kelompokUnit1Set.size,
@@ -468,11 +546,9 @@
                     siswaUnit2: siswaUnit2
                 };
 
-                // Update Status Indicator ke Online
-                statusEl.className = "flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold text-emerald-700";
-                syncText.textContent = "Online";
+                if (statusEl) statusEl.className = "flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold text-emerald-700";
+                if (syncText) syncText.textContent = "Online";
 
-                // Render ulang tampilan Dashboard
                 renderDashboardMetrics();
                 renderDashboardSummaryTable();
                 
@@ -484,28 +560,33 @@
             }
         } catch (error) {
             console.error("API Error:", error);
-            statusEl.className = "flex items-center gap-2 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full text-xs font-semibold text-rose-700";
-            syncText.textContent = "Error Sync";
+            if (statusEl) statusEl.className = "flex items-center gap-2 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full text-xs font-semibold text-rose-700";
+            if (syncText) syncText.textContent = "Error Sync";
         } finally {
-            refreshIcon.classList.remove('fa-spin');
+            if (refreshIcon) refreshIcon.classList.remove('fa-spin');
         }
     }
 
-    // Render Dashboard Cards Metrics (PAUD 1 & PAUD 2)
     function renderDashboardMetrics() {
         const s = globalState.summary;
-        document.getElementById('metric-guru-unit1').textContent = s.guruUnit1 ?? 0;
-        document.getElementById('metric-kelompok-unit1').textContent = s.kelompokUnit1 ?? 0;
-        document.getElementById('metric-siswa-unit1').textContent = s.siswaUnit1 ?? 0;
-        
-        document.getElementById('metric-guru-unit2').textContent = s.guruUnit2 ?? 0;
-        document.getElementById('metric-kelompok-unit2').textContent = s.kelompokUnit2 ?? 0;
-        document.getElementById('metric-siswa-unit2').textContent = s.siswaUnit2 ?? 0;
+        const elG1 = document.getElementById('metric-guru-unit1');
+        const elK1 = document.getElementById('metric-kelompok-unit1');
+        const elS1 = document.getElementById('metric-siswa-unit1');
+        const elG2 = document.getElementById('metric-guru-unit2');
+        const elK2 = document.getElementById('metric-kelompok-unit2');
+        const elS2 = document.getElementById('metric-siswa-unit2');
+
+        if (elG1) elG1.textContent = s.guruUnit1 ?? 0;
+        if (elK1) elK1.textContent = s.kelompokUnit1 ?? 0;
+        if (elS1) elS1.textContent = s.siswaUnit1 ?? 0;
+        if (elG2) elG2.textContent = s.guruUnit2 ?? 0;
+        if (elK2) elK2.textContent = s.kelompokUnit2 ?? 0;
+        if (elS2) elS2.textContent = s.siswaUnit2 ?? 0;
     }
 
-    // Render Dashboard Summary Table
     function renderDashboardSummaryTable() {
         const tbody = document.getElementById('dashboard-summary-tbody');
+        if (!tbody) return;
         const rekapObj = globalState.result.rekapKelas || {};
         const listSiswa = globalState.result.data || globalState.result.dataSiswa || globalState.result.siswa || globalState.result.pesertaDidik || [];
         const keys = Object.keys(rekapObj);
@@ -520,17 +601,11 @@
 
         tbody.innerHTML = displayKeys.map(key => {
             const item = rekapObj[key] || {};
-            
-            // Cari nama Wali Kelas (bukan unit)
             const waliKelas = item.waliKelas || item.wali_kelas || item.wali || item.guru || item.namaGuru || '-';
-            
-            // Hitung jumlah siswa per kelompok secara otomatis dari data siswa jika di rekap nol
             const countFromList = Array.isArray(listSiswa) 
-                ? listSiswa.filter(s => (s.kelas || s.kelompok) === key).length 
+                ? listSiswa.filter(s => getPropValue(s, ['kelas', 'kelompok']) === key).length 
                 : 0;
             const jumlahSiswa = item.jumlahSiswa || item.totalSiswa || (item.jumlahInput > 0 ? item.jumlahInput : countFromList) || 0;
-            
-            // Persentase / Status Kehadiran
             const kehadiran = item.kehadiran || item.tampilan || item.persentase || '0%';
 
             return `
@@ -548,9 +623,9 @@
         }).join('');
     }
 
-    // Single Page Navigation Controller
     function switchPage(pageId, titleText, dataKey = null) {
-        document.getElementById('page-title').textContent = titleText;
+        const titleEl = document.getElementById('page-title');
+        if (titleEl) titleEl.textContent = titleText;
         currentActiveDataKey = dataKey;
 
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -564,18 +639,17 @@
         const pageGeneric = document.getElementById('page-generic');
 
         if (pageId === 'beranda') {
-            pageBeranda.classList.remove('hidden');
-            pageGeneric.classList.add('hidden');
+            if (pageBeranda) pageBeranda.classList.remove('hidden');
+            if (pageGeneric) pageGeneric.classList.add('hidden');
         } else {
-            pageBeranda.classList.add('hidden');
-            pageGeneric.classList.remove('hidden');
+            if (pageBeranda) pageBeranda.classList.add('hidden');
+            if (pageGeneric) pageGeneric.classList.remove('hidden');
             if (dataKey) {
                 renderGenericTable(dataKey);
             }
         }
     }
 
-    // Dynamic Generic Table Builder dengan Fitur Tombol CRUD
     function renderGenericTable(dataKey) {
         const thead = document.getElementById('generic-table-head');
         const tbody = document.getElementById('generic-table-body');
@@ -608,8 +682,8 @@
         if (recordCount) recordCount.textContent = rawData.length;
 
         if (rawData.length === 0) {
-            thead.innerHTML = '';
-            tbody.innerHTML = `
+            if (thead) thead.innerHTML = '';
+            if (tbody) tbody.innerHTML = `
                 <tr>
                     <td class="p-8 text-center text-slate-400 italic">
                         Tidak ada data ditemukan. 
@@ -619,42 +693,42 @@
             return;
         }
 
-        // Sembunyikan kolom metadata internal (_sheetName, _rowNum) dari tabel UI
         const keys = Object.keys(rawData[0]).filter(k => !k.startsWith('_'));
 
-        // Render Header Tabel
-        thead.innerHTML = `
-            <tr>
-                <th class="p-3 w-12 text-center">No</th>
-                ${keys.map(k => `<th class="p-3 whitespace-nowrap">${formatHeaderLabel(k)}</th>`).join('')}
-                ${isSiswaPage ? `<th class="p-3 text-center w-28">Aksi</th>` : ''}
-            </tr>
-        `;
+        if (thead) {
+            thead.innerHTML = `
+                <tr>
+                    <th class="p-3 w-12 text-center">No</th>
+                    ${keys.map(k => `<th class="p-3 whitespace-nowrap">${formatHeaderLabel(k)}</th>`).join('')}
+                    ${isSiswaPage ? `<th class="p-3 text-center w-28">Aksi</th>` : ''}
+                </tr>
+            `;
+        }
 
-        // Render Baris Data Tabel
-        tbody.innerHTML = rawData.map((row, index) => `
-            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
-                ${keys.map(k => {
-                    let cellVal = row[k];
-                    if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
-                    return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
-                }).join('')}
-                ${isSiswaPage ? `
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <button onclick="openSiswaModal('edit', ${index})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
-                            <i class="fa-solid fa-pen"></i> Edit
-                        </button>
-                        <button onclick="handleDeleteSiswa(${index})" class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
-                            <i class="fa-solid fa-trash"></i> Hapus
-                        </button>
-                    </td>
-                ` : ''}
-            </tr>
-        `).join('');
+        if (tbody) {
+            tbody.innerHTML = rawData.map((row, index) => `
+                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                    <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
+                    ${keys.map(k => {
+                        let cellVal = row[k];
+                        if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
+                        return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
+                    }).join('')}
+                    ${isSiswaPage ? `
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <button onclick="openSiswaModal('edit', ${index})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
+                                <i class="fa-solid fa-pen"></i> Edit
+                            </button>
+                            <button onclick="handleDeleteSiswa(${index})" class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
+                                <i class="fa-solid fa-trash"></i> Hapus
+                            </button>
+                        </td>
+                    ` : ''}
+                </tr>
+            `).join('');
+        }
     }
 
-    // Capitalize Key Label Formatter
     function formatHeaderLabel(str) {
         return str
             .replace(/([A-Z])/g, ' $1')
@@ -662,10 +736,10 @@
             .replace(/_/g, ' ');
     }
 
-    // Live Table Search Engine
     function filterTable() {
         const input = document.getElementById('table-search-input').value.toLowerCase();
         const tbody = document.getElementById('generic-table-body');
+        if (!tbody) return;
         const rows = tbody.getElementsByTagName('tr');
         let visibleCount = 0;
 
@@ -678,73 +752,112 @@
                 rows[i].style.display = "none";
             }
         }
-        document.getElementById('record-count').textContent = visibleCount;
+        const recordCount = document.getElementById('record-count');
+        if (recordCount) recordCount.textContent = visibleCount;
     }
 
-    // Mobile Sidebar Toggle
     function toggleMobileSidebar() {
         const sidebar = document.querySelector('aside');
-        sidebar.classList.toggle('hidden');
-        sidebar.classList.toggle('absolute');
-        sidebar.classList.toggle('h-full');
+        if (sidebar) {
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('absolute');
+            sidebar.classList.toggle('h-full');
+        }
     }
 
-    // --- KHUSUS CRUD DATA PESERTA DIDIK ---
+    // --- SFISIEN & PRESI MODAL HANDLER SISWA ---
     function openSiswaModal(mode, index = null) {
-    const modal = document.getElementById('modal-siswa');
-    const title = document.getElementById('modal-siswa-title');
-    const form = document.getElementById('form-siswa');
+        const modal = document.getElementById('modal-siswa');
+        const title = document.getElementById('modal-siswa-title');
+        const form = document.getElementById('form-siswa');
 
-    modal.classList.remove('hidden');
-
-    if (mode === 'add') {
-        title.textContent = 'Tambah Peserta Didik';
-        if (form) {
-            form.reset();
-            delete form.dataset.rowNum;
-            delete form.dataset.sumberSheet;
+        if (!modal) {
+            console.error("Elemen #modal-siswa tidak ditemukan di DOM!");
+            alert("Error: Modal HTML tidak ditemukan.");
+            return;
         }
-    } else if (mode === 'edit' && index !== null) {
-        title.textContent = 'Edit Peserta Didik';
-        const item = activeRenderedData[index];
-        
-        if (item) {
-            // Pencocokan langsung dengan nama kolom Spreadsheet Baris 3
-            document.getElementById('siswa-nama').value = item['Nama'] || item['nama'] || item['NAMA'] || '';
-            document.getElementById('siswa-kelas').value = item['Kelas'] || item['kelas'] || '';
-            document.getElementById('siswa-jk').value = item['JK'] || item['jk'] || 'L';
-            document.getElementById('siswa-nisn').value = item['NISN'] || item['nisn'] || '';
-            document.getElementById('siswa-unit').value = item['Unit'] || item['unit'] || (item._sheetName && item._sheetName.includes('2') ? 'PAUD 2' : 'PAUD 1');
 
-            // Simpan referensi baris asli Google Sheets (misal: baris 4, 5, dst.)
+        modal.classList.remove('hidden');
+
+        // Deteksi seluruh elemen form menggunakan Universal Field Finder
+        const elNama = getFormField(modal, ['nama lengkap', 'nama siswa', 'nama'], ['siswa-nama', 'nama', 'nama_lengkap', 'nama-lengkap', 'siswa_nama']);
+        const elUnit = getFormField(modal, ['unit sekolah', 'unit'], ['siswa-unit', 'unit', 'unit_sekolah', 'unit-sekolah']);
+        const elKelas = getFormField(modal, ['kelas', 'kelompok'], ['siswa-kelas', 'kelas', 'kelompok', 'kelas_kelompok']);
+        const elJk = getFormField(modal, ['jenis kelamin', 'jk'], ['siswa-jk', 'jk', 'jenis_kelamin', 'jenis-kelamin']);
+        const elNisn = getFormField(modal, ['nisn', 'nis'], ['siswa-nisn', 'nisn', 'nis']);
+
+        if (mode === 'add') {
+            if (title) title.textContent = 'Tambah Peserta Didik';
             if (form) {
-                form.dataset.rowNum = item._rowNum || '';
-                form.dataset.sumberSheet = item._sheetName || 'Master Data Siswa PAUD 1';
+                form.reset();
+                delete form.dataset.rowNum;
+                delete form.dataset.sumberSheet;
+            }
+            if (elNama) elNama.value = '';
+            if (elNisn) elNisn.value = '';
+        } else if (mode === 'edit' && index !== null) {
+            if (title) title.textContent = 'Edit Peserta Didik';
+            const item = activeRenderedData[index];
+            
+            console.log("=== DEBUG EDIT SISWA ===");
+            console.log("Row Index:", index);
+            console.log("Row Item Data:", item);
+
+            if (item) {
+                const namaVal = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']);
+                const unitVal = getPropValue(item, ['unit', 'unit_sekolah']) || (item._sheetName && item._sheetName.includes('2') ? 'PAUD 2' : 'PAUD 1');
+                const kelasVal = getPropValue(item, ['kelas', 'kelompok']);
+                const jkVal = getPropValue(item, ['jk', 'jenis kelamin', 'jeniskelamin']);
+                const nisnVal = getPropValue(item, ['nisn', 'nis']);
+
+                console.log("Extracted Values -> Nama:", namaVal, "| Unit:", unitVal, "| Kelas:", kelasVal, "| JK:", jkVal, "| NISN:", nisnVal);
+
+                if (elNama) elNama.value = namaVal;
+                setSelectValue(elUnit, unitVal);
+                setSelectValue(elKelas, kelasVal);
+                setSelectValue(elJk, jkVal);
+                if (elNisn) elNisn.value = nisnVal;
+
+                if (form) {
+                    form.dataset.rowNum = item._rowNum || '';
+                    form.dataset.sumberSheet = item._sheetName || 'Master Data Siswa PAUD 1';
+                }
+            } else {
+                console.warn("Item data tidak ditemukan pada index:", index);
             }
         }
     }
-}
 
     function closeSiswaModal() {
-        document.getElementById('modal-siswa').classList.add('hidden');
+        const modal = document.getElementById('modal-siswa');
+        if (modal) modal.classList.add('hidden');
     }
 
     async function handleSaveSiswa(e) {
-        e.preventDefault();
-        const btnSimpan = document.getElementById('btn-simpan-siswa');
+        if (e && e.preventDefault) e.preventDefault();
+        
+        const modal = document.getElementById('modal-siswa');
         const form = document.getElementById('form-siswa');
+        const btnSimpan = modal ? modal.querySelector('button[type="submit"], .btn-simpan, #btn-simpan-siswa') : null;
+        
         const rowNum = form ? form.dataset.rowNum : '';
         const isEdit = Boolean(rowNum);
+
+        const elNama = getFormField(modal, ['nama lengkap', 'nama siswa', 'nama'], ['siswa-nama', 'nama', 'nama_lengkap', 'nama-lengkap']);
+        const elUnit = getFormField(modal, ['unit sekolah', 'unit'], ['siswa-unit', 'unit', 'unit_sekolah']);
+        const elKelas = getFormField(modal, ['kelas', 'kelompok'], ['siswa-kelas', 'kelas', 'kelompok']);
+        const elJk = getFormField(modal, ['jenis kelamin', 'jk'], ['siswa-jk', 'jk', 'jenis_kelamin']);
+        const elNisn = getFormField(modal, ['nisn', 'nis'], ['siswa-nisn', 'nisn', 'nis']);
 
         const params = new URLSearchParams({
             action: isEdit ? 'updateSiswa' : 'createSiswa',
             rowNum: rowNum || '',
             sumberSheet: (form && form.dataset.sumberSheet) ? form.dataset.sumberSheet : 'Master Data Siswa PAUD 1',
-            nama: document.getElementById('siswa-nama') ? document.getElementById('siswa-nama').value : '',
-            unit: document.getElementById('siswa-unit') ? document.getElementById('siswa-unit').value : 'PAUD 1',
-            kelas: document.getElementById('siswa-kelas') ? document.getElementById('siswa-kelas').value : '',
-            jk: document.getElementById('siswa-jk') ? document.getElementById('siswa-jk').value : 'L',
-            nisn: document.getElementById('siswa-nisn') ? document.getElementById('siswa-nisn').value : ''
+            nama: elNama ? elNama.value : '',
+            unit: elUnit ? elUnit.value : 'PAUD 1',
+            kelas: elKelas ? elKelas.value : '',
+            jk: elJk ? elJk.value : 'L',
+            nisn: elNisn ? elNisn.value : ''
         });
 
         if (btnSimpan) {
@@ -758,7 +871,7 @@
 
             if (result.status === 'success') {
                 closeSiswaModal();
-                fetchData(); // Refresh data otomatis dari Google Sheets
+                fetchData();
             } else {
                 alert("Gagal menyimpan: " + (result.message || "Terjadi kesalahan"));
             }
@@ -792,7 +905,7 @@
             const result = await res.json();
 
             if (result.status === 'success') {
-                fetchData(); // Refresh data otomatis dari Google Sheets
+                fetchData();
             } else {
                 alert("Gagal menghapus: " + (result.message || "Terjadi kesalahan"));
             }
