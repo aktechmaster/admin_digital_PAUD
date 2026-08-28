@@ -84,7 +84,6 @@
                             </a>
                         </li>
                         <li>
-                            <!-- Menghubungkan ke dataSiswa gabungan 2 URL -->
                             <a href="#" onclick="switchPage('dataSiswa', 'Data Peserta Didik', 'dataSiswa')" class="nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition hover:bg-slate-800 hover:text-white" data-page="dataSiswa">
                                 <i class="fa-solid fa-children w-5 text-center"></i> Peserta Didik
                             </a>
@@ -110,7 +109,6 @@
     </aside>
 
     <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        
         <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm">
             <div class="flex items-center gap-4">
                 <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-600 hover:text-slate-900 focus:outline-none">
@@ -142,7 +140,6 @@
         </header>
 
         <main class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50">
-            
             <section id="page-beranda" class="space-y-6">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -263,17 +260,12 @@
                     </div>
                 </div>
             </section>
-
         </main>
     </div>
 
     <script>
-        // 1. URL SPREADSHEET DATABASE MASTER (Jurnal, Absensi, Biodata Guru, Users, dll)
-        const API_URL_MASTER = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA-nkGLvdNemkI-NLgp14qQxPNU68YogQ3i2LaIBpzacyYBL25qTYA2w/exec";
-
-        // 2. URL SPREADSHEET DATA SISWA (Ganti baris ini jika Anda memiliki URL terpisah khusus Data Siswa)
-        // Jika spreadsheet-nya sama, biarkan nilainya sama dengan API_URL_MASTER.
-        const API_URL_SISWA = "https://script.google.com/macros/s/AKfycbyKACtb6mZAiSoZclmCgM1CJdEg0RckeO-5sydrz_KGQpMN01rNJy-4QowhuexGmksEug/exec";
+        // URL WEB APP APPS SCRIPT MASTER
+        const API_URL = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA-nkGLvdNemkI-NLgp14qQxPNU68YogQ3i2LaIBpzacyYBL25qTYA2w/exec";
 
         let globalState = {
             summary: {},
@@ -285,7 +277,6 @@
             fetchData();
         });
 
-        // KABEL KONEKSI DUAL FETCH: Memanggil Master API dan Siswa API secara Paralel
         async function fetchData() {
             const statusEl = document.getElementById('sync-status');
             const syncText = document.getElementById('sync-text');
@@ -296,30 +287,15 @@
             refreshIcon.classList.add('fa-spin');
 
             try {
-                // Menarik kedua endpoint sekaligus menggunakan Promise.all
-                const [resMaster, resSiswa] = await Promise.all([
-                    fetch(API_URL_MASTER).then(r => r.json()),
-                    API_URL_MASTER === API_URL_SISWA 
-                        ? Promise.resolve(null) 
-                        : fetch(API_URL_SISWA).then(r => r.json()).catch(() => null)
-                ]);
+                // Fetch tunggal ke Master Web App (sudah mencakup data siswa dari ID eksternal)
+                const res = await fetch(API_URL).then(r => r.json());
 
-                if (resMaster && typeof resMaster === 'object') {
-                    globalState.result = resMaster;
+                if (res && typeof res === 'object') {
+                    globalState.result = res;
+                    const listSiswa = res.dataSiswa || res.data || [];
 
-                    // Menggabungkan dataSiswa dari Spreadsheet Siswa (jika terpisah) atau dari Master
-                    let listSiswa = [];
-                    if (resSiswa) {
-                        listSiswa = resSiswa.dataSiswa || resSiswa.data || [];
-                    } else {
-                        listSiswa = resMaster.dataSiswa || resMaster.data || [];
-                    }
-                    
-                    // Simpan data siswa ke global state
-                    globalState.result.dataSiswa = listSiswa;
-
-                    const listBiodata = Object.keys(resMaster.biodata || {});
-                    const rekapKelasObj = resMaster.rekapKelas || {};
+                    const listBiodata = Object.keys(res.biodata || {});
+                    const rekapKelasObj = res.rekapKelas || {};
                     
                     const kelompokSet = new Set();
                     if (Array.isArray(listSiswa)) {
@@ -356,7 +332,7 @@
                         renderGenericTable(currentActiveDataKey);
                     }
                 } else {
-                    throw new Error("Gagal mengambil data dari Master API");
+                    throw new Error("Format JSON API tidak valid");
                 }
             } catch (error) {
                 console.error("API Error:", error);
