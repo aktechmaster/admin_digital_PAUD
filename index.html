@@ -347,13 +347,14 @@
             if (data && typeof data === 'object') {
                 globalState.result = data;
 
-                const listSiswa = data.data || [];
-                const biodataObj = data.biodata || {};
+                // Alias data siswa & biodata
+                const listSiswa = data.data || data.dataSiswa || data.siswa || data.pesertaDidik || [];
+                const biodataObj = data.biodata || data.guru || {};
                 const rekapKelasObj = data.rekapKelas || {};
                 
                 // 1. Kalkulasi Siswa per Unit
-                const siswaUnit1 = listSiswa.filter(s => s.unit === "PAUD 1").length;
-                const siswaUnit2 = listSiswa.filter(s => s.unit === "PAUD 2").length;
+                const siswaUnit1 = listSiswa.filter(s => String(s.unit || s.unit_sekolah || '').includes('1') || s.unit === "PAUD 1").length;
+                const siswaUnit2 = listSiswa.filter(s => String(s.unit || s.unit_sekolah || '').includes('2') || s.unit === "PAUD 2").length;
 
                 // 2. Kalkulasi Kelompok per Unit
                 const kelompokUnit1Set = new Set();
@@ -361,9 +362,11 @@
 
                 if (Array.isArray(listSiswa)) {
                     listSiswa.forEach(item => {
-                        if (item.kelas) {
-                            if (item.unit === "PAUD 1") kelompokUnit1Set.add(item.kelas);
-                            else if (item.unit === "PAUD 2") kelompokUnit2Set.add(item.kelas);
+                        const kelas = item.kelas || item.kelompok;
+                        const unit = String(item.unit || '');
+                        if (kelas) {
+                            if (unit.includes('1') || unit === "PAUD 1") kelompokUnit1Set.add(kelas);
+                            else if (unit.includes('2') || unit === "PAUD 2") kelompokUnit2Set.add(kelas);
                         }
                     });
                 }
@@ -372,8 +375,9 @@
                 if (kelompokUnit1Set.size === 0 && kelompokUnit2Set.size === 0) {
                     Object.keys(rekapKelasObj).forEach(k => {
                         const item = rekapKelasObj[k];
-                        if (item.unit === "PAUD 1") kelompokUnit1Set.add(k);
-                        else if (item.unit === "PAUD 2") kelompokUnit2Set.add(k);
+                        const unit = String(item.unit || '');
+                        if (unit.includes('1') || unit === "PAUD 1") kelompokUnit1Set.add(k);
+                        else if (unit.includes('2') || unit === "PAUD 2") kelompokUnit2Set.add(k);
                     });
                 }
 
@@ -381,11 +385,12 @@
                 let guruUnit1 = 0;
                 let guruUnit2 = 0;
                 Object.values(biodataObj).forEach(guru => {
-                    if (guru.unit === "PAUD 1") guruUnit1++;
-                    else if (guru.unit === "PAUD 2") guruUnit2++;
+                    const unit = String(guru.unit || '');
+                    if (unit.includes('1') || unit === "PAUD 1") guruUnit1++;
+                    else if (unit.includes('2') || unit === "PAUD 2") guruUnit2++;
                 });
 
-                // Set globalState.summary terpisah
+                // Set globalState.summary
                 globalState.summary = {
                     guruUnit1: guruUnit1,
                     kelompokUnit1: kelompokUnit1Set.size,
@@ -421,12 +426,10 @@
     // Render Dashboard Cards Metrics (PAUD 1 & PAUD 2)
     function renderDashboardMetrics() {
         const s = globalState.summary;
-        // PAUD 1
         document.getElementById('metric-guru-unit1').textContent = s.guruUnit1 ?? 0;
         document.getElementById('metric-kelompok-unit1').textContent = s.kelompokUnit1 ?? 0;
         document.getElementById('metric-siswa-unit1').textContent = s.siswaUnit1 ?? 0;
         
-        // PAUD 2
         document.getElementById('metric-guru-unit2').textContent = s.guruUnit2 ?? 0;
         document.getElementById('metric-kelompok-unit2').textContent = s.kelompokUnit2 ?? 0;
         document.getElementById('metric-siswa-unit2').textContent = s.siswaUnit2 ?? 0;
@@ -436,6 +439,7 @@
     function renderDashboardSummaryTable() {
         const tbody = document.getElementById('dashboard-summary-tbody');
         const rekapObj = globalState.result.rekapKelas || {};
+        const listSiswa = globalState.result.data || globalState.result.dataSiswa || globalState.result.siswa || globalState.result.pesertaDidik || [];
         const keys = Object.keys(rekapObj);
 
         if (keys.length === 0) {
@@ -447,15 +451,28 @@
         const displayKeys = uniqueKeys.length > 0 ? uniqueKeys : keys;
 
         tbody.innerHTML = displayKeys.map(key => {
-            const item = rekapObj[key];
+            const item = rekapObj[key] || {};
+            
+            // Cari nama Wali Kelas (bukan unit)
+            const waliKelas = item.waliKelas || item.wali_kelas || item.wali || item.guru || item.namaGuru || '-';
+            
+            // Hitung jumlah siswa per kelompok secara otomatis dari data siswa jika di rekap nol
+            const countFromList = Array.isArray(listSiswa) 
+                ? listSiswa.filter(s => (s.kelas || s.kelompok) === key).length 
+                : 0;
+            const jumlahSiswa = item.jumlahSiswa || item.totalSiswa || (item.jumlahInput > 0 ? item.jumlahInput : countFromList) || 0;
+            
+            // Persentase / Status Kehadiran
+            const kehadiran = item.kehadiran || item.tampilan || item.persentase || '0%';
+
             return `
                 <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                     <td class="p-3 font-semibold text-slate-700">${key}</td>
-                    <td class="p-3 text-slate-600">${item.unit || '-'}</td>
-                    <td class="p-3 text-center font-bold text-slate-800">${item.jumlahInput || 0}</td>
+                    <td class="p-3 text-slate-600">${waliKelas}</td>
+                    <td class="p-3 text-center font-bold text-slate-800">${jumlahSiswa}</td>
                     <td class="p-3 text-center">
                         <span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold text-xs">
-                            ${item.tampilan || '0%'}
+                            ${kehadiran}
                         </span>
                     </td>
                 </tr>
@@ -498,7 +515,19 @@
         const searchInput = document.getElementById('table-search-input');
         
         searchInput.value = '';
-        let rawData = globalState.result[dataKey] || [];
+        
+        // Ambil data berdasarkan dataKey dengan pemetaan fallback
+        let rawData = globalState.result[dataKey];
+
+        if (!rawData || (Array.isArray(rawData) && rawData.length === 0)) {
+            if (dataKey === 'dataSiswa') {
+                rawData = globalState.result.data || globalState.result.dataSiswa || globalState.result.siswa || globalState.result.pesertaDidik || [];
+            } else if (dataKey === 'biodata') {
+                rawData = globalState.result.biodata || globalState.result.guru || globalState.result.staf || [];
+            } else {
+                rawData = rawData || [];
+            }
+        }
 
         if (!Array.isArray(rawData) && typeof rawData === 'object') {
             rawData = Object.keys(rawData).map(key => {
