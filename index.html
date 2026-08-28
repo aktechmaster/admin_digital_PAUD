@@ -377,6 +377,20 @@
         result: {}
     };
     let currentActiveDataKey = null;
+    let activeRenderedData = [];
+
+    // Helper Pembaca Properti Fleksibel (Mengabaikan Kapital / Spasi)
+    function getValueFromObj(obj, keys) {
+        if (!obj) return '';
+        const objKeys = Object.keys(obj);
+        for (let targetKey of keys) {
+            const foundKey = objKeys.find(k => k.trim().toLowerCase() === targetKey.toLowerCase());
+            if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
+                return obj[foundKey];
+            }
+        }
+        return '';
+    }
 
     // Initialize App
     document.addEventListener('DOMContentLoaded', () => {
@@ -568,7 +582,7 @@
         const recordCount = document.getElementById('record-count');
         const searchInput = document.getElementById('table-search-input');
         
-        searchInput.value = '';
+        if (searchInput) searchInput.value = '';
         
         let rawData = globalState.result[dataKey];
 
@@ -589,11 +603,9 @@
             });
         }
 
-        // Tampilkan Tombol "Tambah Siswa" hanya di Halaman Data Siswa
-        const actionHeaderBtnContainer = document.getElementById('table-actions-container'); // jika ada
+        activeRenderedData = rawData;
         const isSiswaPage = (dataKey === 'dataSiswa');
-
-        recordCount.textContent = rawData.length;
+        if (recordCount) recordCount.textContent = rawData.length;
 
         if (rawData.length === 0) {
             thead.innerHTML = '';
@@ -607,7 +619,8 @@
             return;
         }
 
-        const keys = Object.keys(rawData[0]);
+        // Sembunyikan kolom metadata internal (_sheetName, _rowNum) dari tabel UI
+        const keys = Object.keys(rawData[0]).filter(k => !k.startsWith('_'));
 
         // Render Header Tabel
         thead.innerHTML = `
@@ -624,15 +637,15 @@
                 <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
                 ${keys.map(k => {
                     let cellVal = row[k];
-                    if (typeof cellVal === 'object') cellVal = JSON.stringify(cellVal);
+                    if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
                     return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
                 }).join('')}
                 ${isSiswaPage ? `
                     <td class="p-3 text-center whitespace-nowrap">
-                        <button onclick="openSiswaModal('edit', ${index})" class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
+                        <button onclick="openSiswaModal('edit', ${index})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
                             <i class="fa-solid fa-pen"></i> Edit
                         </button>
-                        <button onclick="handleDeleteSiswa(${index})" class="px-2 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
+                        <button onclick="handleDeleteSiswa(${index})" class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
                             <i class="fa-solid fa-trash"></i> Hapus
                         </button>
                     </td>
@@ -676,33 +689,45 @@
         sidebar.classList.toggle('h-full');
     }
 
-        // --- KHUSUS CRUD DATA PESERTA DIDIK ---
-    let currentSiswaList = [];
-
+    // --- KHUSUS CRUD DATA PESERTA DIDIK ---
     function openSiswaModal(mode, index = null) {
         const modal = document.getElementById('modal-siswa');
         const title = document.getElementById('modal-siswa-title');
         const form = document.getElementById('form-siswa');
-        
-        // Dapatkan data siswa saat ini
-        currentSiswaList = globalState.result.data || globalState.result.dataSiswa || globalState.result.siswa || [];
 
         modal.classList.remove('hidden');
 
         if (mode === 'add') {
             title.textContent = 'Tambah Peserta Didik';
-            form.reset();
-            document.getElementById('siswa-row-index').value = '';
+            if (form) {
+                form.reset();
+                delete form.dataset.rowNum;
+                delete form.dataset.sumberSheet;
+            }
         } else if (mode === 'edit' && index !== null) {
             title.textContent = 'Edit Peserta Didik';
-            const item = currentSiswaList[index];
+            const item = activeRenderedData[index];
             
-            document.getElementById('siswa-row-index').value = index;
-            document.getElementById('siswa-nama').value = item.nama || item.nama_siswa || item['Nama/Key'] || '';
-            document.getElementById('siswa-unit').value = item.unit || 'PAUD 1';
-            document.getElementById('siswa-kelas').value = item.kelas || item.kelompok || '';
-            document.getElementById('siswa-jk').value = item.jenisKelamin || item.jk || 'L';
-            document.getElementById('siswa-nisn').value = item.nisn || item.nis || '';
+            if (item) {
+                // Isi input modal secara otomatis menggunakan pembaca properti fleksibel
+                const elNama = document.getElementById('siswa-nama');
+                const elUnit = document.getElementById('siswa-unit');
+                const elKelas = document.getElementById('siswa-kelas');
+                const elJk = document.getElementById('siswa-jk');
+                const elNisn = document.getElementById('siswa-nisn');
+
+                if (elNama) elNama.value = getValueFromObj(item, ['nama siswa', 'nama', 'nama_siswa']);
+                if (elUnit) elUnit.value = getValueFromObj(item, ['unit']) || 'PAUD 1';
+                if (elKelas) elKelas.value = getValueFromObj(item, ['kelas', 'kelompok']);
+                if (elJk) elJk.value = getValueFromObj(item, ['jk', 'jenis kelamin', 'jeniskelamin']) || 'L';
+                if (elNisn) elNisn.value = getValueFromObj(item, ['nisn', 'nis']);
+
+                // Simpan lokasi baris fisik & nama sheet ke dataset form
+                if (form) {
+                    form.dataset.rowNum = item._rowNum || '';
+                    form.dataset.sumberSheet = item._sheetName || 'Master Data Siswa PAUD 1';
+                }
+            }
         }
     }
 
@@ -713,52 +738,72 @@
     async function handleSaveSiswa(e) {
         e.preventDefault();
         const btnSimpan = document.getElementById('btn-simpan-siswa');
-        const rowIndex = document.getElementById('siswa-row-index').value;
-        const isEdit = rowIndex !== '';
+        const form = document.getElementById('form-siswa');
+        const rowNum = form ? form.dataset.rowNum : '';
+        const isEdit = Boolean(rowNum);
 
-        const payload = {
+        const params = new URLSearchParams({
             action: isEdit ? 'updateSiswa' : 'createSiswa',
-            rowIndex: rowIndex,
-            nama: document.getElementById('siswa-nama').value,
-            unit: document.getElementById('siswa-unit').value,
-            kelas: document.getElementById('siswa-kelas').value,
-            jenisKelamin: document.getElementById('siswa-jk').value,
-            nisn: document.getElementById('siswa-nisn').value
-        };
+            rowNum: rowNum || '',
+            sumberSheet: (form && form.dataset.sumberSheet) ? form.dataset.sumberSheet : 'Master Data Siswa PAUD 1',
+            nama: document.getElementById('siswa-nama') ? document.getElementById('siswa-nama').value : '',
+            unit: document.getElementById('siswa-unit') ? document.getElementById('siswa-unit').value : 'PAUD 1',
+            kelas: document.getElementById('siswa-kelas') ? document.getElementById('siswa-kelas').value : '',
+            jk: document.getElementById('siswa-jk') ? document.getElementById('siswa-jk').value : 'L',
+            nisn: document.getElementById('siswa-nisn') ? document.getElementById('siswa-nisn').value : ''
+        });
 
-        btnSimpan.disabled = true;
-        btnSimpan.textContent = "Saving...";
+        if (btnSimpan) {
+            btnSimpan.disabled = true;
+            btnSimpan.textContent = "Menyimpan...";
+        }
 
         try {
-            await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
+            const res = await fetch(`${API_URL}?${params.toString()}`);
+            const result = await res.json();
 
-            closeSiswaModal();
-            fetchData(); // Refresh data otomatis dari Google Sheets
+            if (result.status === 'success') {
+                closeSiswaModal();
+                fetchData(); // Refresh data otomatis dari Google Sheets
+            } else {
+                alert("Gagal menyimpan: " + (result.message || "Terjadi kesalahan"));
+            }
         } catch (err) {
-            alert("Gagal menyimpan data siswa: " + err.message);
+            alert("Error koneksi: " + err.message);
         } finally {
-            btnSimpan.disabled = false;
-            btnSimpan.textContent = "Simpan Data";
+            if (btnSimpan) {
+                btnSimpan.disabled = false;
+                btnSimpan.textContent = "Simpan Data";
+            }
         }
     }
 
     async function handleDeleteSiswa(index) {
         if (!confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) return;
+        const item = activeRenderedData[index];
+
+        if (!item || !item._rowNum) {
+            alert("Nomor baris data tidak ditemukan.");
+            return;
+        }
+
+        const params = new URLSearchParams({
+            action: 'deleteSiswa',
+            rowNum: item._rowNum,
+            sumberSheet: item._sheetName || 'Master Data Siswa PAUD 1'
+        });
 
         try {
-            await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'deleteSiswa',
-                    rowIndex: index
-                })
-            });
-            fetchData(); // Refresh data
+            const res = await fetch(`${API_URL}?${params.toString()}`);
+            const result = await res.json();
+
+            if (result.status === 'success') {
+                fetchData(); // Refresh data otomatis dari Google Sheets
+            } else {
+                alert("Gagal menghapus: " + (result.message || "Terjadi kesalahan"));
+            }
         } catch (err) {
-            alert("Gagal menghapus data: " + err.message);
+            alert("Error koneksi: " + err.message);
         }
     }
 </script>
