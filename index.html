@@ -691,45 +691,39 @@
 
     // --- KHUSUS CRUD DATA PESERTA DIDIK ---
     function openSiswaModal(mode, index = null) {
-        const modal = document.getElementById('modal-siswa');
-        const title = document.getElementById('modal-siswa-title');
-        const form = document.getElementById('form-siswa');
+    const modal = document.getElementById('modal-siswa');
+    const title = document.getElementById('modal-siswa-title');
+    const form = document.getElementById('form-siswa');
 
-        modal.classList.remove('hidden');
+    modal.classList.remove('hidden');
 
-        if (mode === 'add') {
-            title.textContent = 'Tambah Peserta Didik';
+    if (mode === 'add') {
+        title.textContent = 'Tambah Peserta Didik';
+        if (form) {
+            form.reset();
+            delete form.dataset.rowNum;
+            delete form.dataset.sumberSheet;
+        }
+    } else if (mode === 'edit' && index !== null) {
+        title.textContent = 'Edit Peserta Didik';
+        const item = activeRenderedData[index];
+        
+        if (item) {
+            // Pencocokan langsung dengan nama kolom Spreadsheet Baris 3
+            document.getElementById('siswa-nama').value = item['Nama'] || item['nama'] || item['NAMA'] || '';
+            document.getElementById('siswa-kelas').value = item['Kelas'] || item['kelas'] || '';
+            document.getElementById('siswa-jk').value = item['JK'] || item['jk'] || 'L';
+            document.getElementById('siswa-nisn').value = item['NISN'] || item['nisn'] || '';
+            document.getElementById('siswa-unit').value = item['Unit'] || item['unit'] || (item._sheetName && item._sheetName.includes('2') ? 'PAUD 2' : 'PAUD 1');
+
+            // Simpan referensi baris asli Google Sheets (misal: baris 4, 5, dst.)
             if (form) {
-                form.reset();
-                delete form.dataset.rowNum;
-                delete form.dataset.sumberSheet;
-            }
-        } else if (mode === 'edit' && index !== null) {
-            title.textContent = 'Edit Peserta Didik';
-            const item = activeRenderedData[index];
-            
-            if (item) {
-                // Isi input modal secara otomatis menggunakan pembaca properti fleksibel
-                const elNama = document.getElementById('siswa-nama');
-                const elUnit = document.getElementById('siswa-unit');
-                const elKelas = document.getElementById('siswa-kelas');
-                const elJk = document.getElementById('siswa-jk');
-                const elNisn = document.getElementById('siswa-nisn');
-
-                if (elNama) elNama.value = getValueFromObj(item, ['nama siswa', 'nama', 'nama_siswa']);
-                if (elUnit) elUnit.value = getValueFromObj(item, ['unit']) || 'PAUD 1';
-                if (elKelas) elKelas.value = getValueFromObj(item, ['kelas', 'kelompok']);
-                if (elJk) elJk.value = getValueFromObj(item, ['jk', 'jenis kelamin', 'jeniskelamin']) || 'L';
-                if (elNisn) elNisn.value = getValueFromObj(item, ['nisn', 'nis']);
-
-                // Simpan lokasi baris fisik & nama sheet ke dataset form
-                if (form) {
-                    form.dataset.rowNum = item._rowNum || '';
-                    form.dataset.sumberSheet = item._sheetName || 'Master Data Siswa PAUD 1';
-                }
+                form.dataset.rowNum = item._rowNum || '';
+                form.dataset.sumberSheet = item._sheetName || 'Master Data Siswa PAUD 1';
             }
         }
     }
+}
 
     function closeSiswaModal() {
         document.getElementById('modal-siswa').classList.add('hidden');
