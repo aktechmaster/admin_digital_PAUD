@@ -84,7 +84,7 @@
                             </a>
                         </li>
                         <li>
-                            <!-- Terhubung langsung ke dataSiswa yang berasal dari 2 tab spreadsheet eksternal -->
+                            <!-- Menghubungkan ke dataSiswa gabungan 2 URL -->
                             <a href="#" onclick="switchPage('dataSiswa', 'Data Peserta Didik', 'dataSiswa')" class="nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition hover:bg-slate-800 hover:text-white" data-page="dataSiswa">
                                 <i class="fa-solid fa-children w-5 text-center"></i> Peserta Didik
                             </a>
@@ -256,9 +256,9 @@
                     <div class="overflow-x-auto custom-scrollbar">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead id="generic-table-head" class="bg-slate-900 text-slate-200 uppercase font-semibold">
-                                </thead>
+                            </thead>
                             <tbody id="generic-table-body" class="divide-y divide-slate-100 text-slate-700">
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -268,51 +268,64 @@
     </div>
 
     <script>
-        // CONFIGURATION: URL Apps Script Anda
-        const API_URL = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA-nkGLvdNemkI-NLgp14qQxPNU68YogQ3i2LaIBpzacyYBL25qTYA2w/exec";
+        // 1. URL SPREADSHEET DATABASE MASTER (Jurnal, Absensi, Biodata Guru, Users, dll)
+        const API_URL_MASTER = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA-nkGLvdNemkI-NLgp14qQxPNU68YogQ3i2LaIBpzacyYBL25qTYA2w/exec";
 
-        // Global State Store
+        // 2. URL SPREADSHEET DATA SISWA (Ganti baris ini jika Anda memiliki URL terpisah khusus Data Siswa)
+        // Jika spreadsheet-nya sama, biarkan nilainya sama dengan API_URL_MASTER.
+        const API_URL_SISWA = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA-nkGLvdNemkI-NLgp14qQxPNU68YogQ3i2LaIBpzacyYBL25qTYA2w/exec";
+
         let globalState = {
             summary: {},
             result: {}
         };
         let currentActiveDataKey = null;
 
-        // Initialize App
         document.addEventListener('DOMContentLoaded', () => {
             fetchData();
         });
 
-        // API Fetching & State Handling
+        // KABEL KONEKSI DUAL FETCH: Memanggil Master API dan Siswa API secara Paralel
         async function fetchData() {
             const statusEl = document.getElementById('sync-status');
             const syncText = document.getElementById('sync-text');
             const refreshIcon = document.getElementById('refresh-icon');
 
-            // UI State Loading
             statusEl.className = "flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-semibold text-amber-700";
             syncText.textContent = "Syncing...";
             refreshIcon.classList.add('fa-spin');
 
             try {
-                const response = await fetch(API_URL);
-                const data = await response.json();
+                // Menarik kedua endpoint sekaligus menggunakan Promise.all
+                const [resMaster, resSiswa] = await Promise.all([
+                    fetch(API_URL_MASTER).then(r => r.json()),
+                    API_URL_MASTER === API_URL_SISWA 
+                        ? Promise.resolve(null) 
+                        : fetch(API_URL_SISWA).then(r => r.json()).catch(() => null)
+                ]);
 
-                if (data && typeof data === 'object') {
-                    globalState.result = data;
+                if (resMaster && typeof resMaster === 'object') {
+                    globalState.result = resMaster;
 
-                    // Mengambil data siswa dari dataSiswa atau fallback ke data
-                    const listSiswa = data.dataSiswa || data.data || [];
-                    const listBiodata = Object.keys(data.biodata || {});
-                    const rekapKelasObj = data.rekapKelas || {};
+                    // Menggabungkan dataSiswa dari Spreadsheet Siswa (jika terpisah) atau dari Master
+                    let listSiswa = [];
+                    if (resSiswa) {
+                        listSiswa = resSiswa.dataSiswa || resSiswa.data || [];
+                    } else {
+                        listSiswa = resMaster.dataSiswa || resMaster.data || [];
+                    }
                     
-                    // Mendapatkan total kelompok unik
+                    // Simpan data siswa ke global state
+                    globalState.result.dataSiswa = listSiswa;
+
+                    const listBiodata = Object.keys(resMaster.biodata || {});
+                    const rekapKelasObj = resMaster.rekapKelas || {};
+                    
                     const kelompokSet = new Set();
                     if (Array.isArray(listSiswa)) {
                         listSiswa.forEach(item => { if(item.kelas) kelompokSet.add(item.kelas); });
                     }
 
-                    // Hitung rata-rata kehadiran
                     let totalPersen = 0;
                     let countKelompok = 0;
                     Object.values(rekapKelasObj).forEach(val => {
@@ -326,7 +339,6 @@
                     });
                     const avgKehadiranVal = countKelompok > 0 ? (totalPersen / countKelompok).toFixed(1) + "%" : "0%";
 
-                    // Set globalState.summary (Menghitung Total Peserta Didik secara Presisi)
                     globalState.summary = {
                         totalGuru: listBiodata.length || 0,
                         totalKelompok: kelompokSet.size || Object.keys(rekapKelasObj).length || 0,
@@ -334,11 +346,9 @@
                         avgKehadiran: avgKehadiranVal
                     };
 
-                    // Update Status Indicator ke Online
                     statusEl.className = "flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold text-emerald-700";
                     syncText.textContent = "Online";
 
-                    // Render ulang tampilan Dashboard
                     renderDashboardMetrics();
                     renderDashboardSummaryTable();
                     
@@ -346,7 +356,7 @@
                         renderGenericTable(currentActiveDataKey);
                     }
                 } else {
-                    throw new Error("Response backend kosong atau format salah");
+                    throw new Error("Gagal mengambil data dari Master API");
                 }
             } catch (error) {
                 console.error("API Error:", error);
@@ -357,7 +367,6 @@
             }
         }
 
-        // Render Dashboard Cards Metrics
         function renderDashboardMetrics() {
             const s = globalState.summary;
             document.getElementById('metric-guru').textContent = s.totalGuru ?? 0;
@@ -366,7 +375,6 @@
             document.getElementById('metric-kehadiran').textContent = s.avgKehadiran ?? "0%";
         }
 
-        // Render Dashboard Summary Table
         function renderDashboardSummaryTable() {
             const tbody = document.getElementById('dashboard-summary-tbody');
             const rekapObj = globalState.result.rekapKelas || {};
@@ -397,12 +405,10 @@
             }).join('');
         }
 
-        // Single Page Navigation Controller
         function switchPage(pageId, titleText, dataKey = null) {
             document.getElementById('page-title').textContent = titleText;
             currentActiveDataKey = dataKey;
 
-            // Highlight Active Sidebar Item
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('sidebar-item-active');
                 if (btn.getAttribute('data-page') === pageId) {
@@ -425,7 +431,6 @@
             }
         }
 
-        // Dynamic Generic Table Builder
         function renderGenericTable(dataKey) {
             const thead = document.getElementById('generic-table-head');
             const tbody = document.getElementById('generic-table-body');
@@ -435,7 +440,6 @@
             searchInput.value = '';
             let rawData = globalState.result[dataKey] || [];
 
-            // Jika data berupa Object (Map), konversi menjadi Array of Objects
             if (!Array.isArray(rawData) && typeof rawData === 'object') {
                 rawData = Object.keys(rawData).map(key => {
                     const val = rawData[key];
@@ -472,7 +476,6 @@
             `).join('');
         }
 
-        // Capitalize Key Label Formatter
         function formatHeaderLabel(str) {
             return str
                 .replace(/([A-Z])/g, ' $1')
@@ -480,7 +483,6 @@
                 .replace(/_/g, ' ');
         }
 
-        // Live Table Search Engine
         function filterTable() {
             const input = document.getElementById('table-search-input').value.toLowerCase();
             const tbody = document.getElementById('generic-table-body');
@@ -499,7 +501,6 @@
             document.getElementById('record-count').textContent = visibleCount;
         }
 
-        // Mobile Sidebar Toggle
         function toggleMobileSidebar() {
             const sidebar = document.querySelector('aside');
             sidebar.classList.toggle('hidden');
