@@ -310,8 +310,62 @@
                 </div>
             </section>
 
-        </main>
+            </main>
     </div>
+
+    <!-- Modal Form Tambah / Edit Siswa -->
+<div id="modal-siswa" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-100">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 id="modal-siswa-title" class="text-lg font-bold text-slate-800">Tambah Peserta Didik</h3>
+            <button onclick="closeSiswaModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+        </div>
+        
+        <form id="form-siswa" onsubmit="handleSaveSiswa(event)">
+            <input type="hidden" id="siswa-row-index" value="">
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Lengkap</label>
+                    <input type="text" id="siswa-nama" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unit Sekolah</label>
+                        <select id="siswa-unit" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="PAUD 1">PAUD 1</option>
+                            <option value="PAUD 2">PAUD 2</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Kelas / Kelompok</label>
+                        <input type="text" id="siswa-kelas" placeholder="Misal: A1 / B2" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Jenis Kelamin</label>
+                        <select id="siswa-jk" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="L">Laki-laki (L)</option>
+                            <option value="P">Perempuan (P)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NISN / NIS</label>
+                        <input type="text" id="siswa-nisn" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeSiswaModal()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200">Batal</button>
+                <button type="submit" id="btn-simpan-siswa" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Simpan Data</button>
+            </div>
+        </form>
+    </div>
+</div>
 
     <script>
     // CONFIGURATION: Execution URL Google Apps Script
@@ -507,7 +561,7 @@
         }
     }
 
-    // Dynamic Generic Table Builder
+    // Dynamic Generic Table Builder dengan Fitur Tombol CRUD
     function renderGenericTable(dataKey) {
         const thead = document.getElementById('generic-table-head');
         const tbody = document.getElementById('generic-table-body');
@@ -516,7 +570,6 @@
         
         searchInput.value = '';
         
-        // Ambil data berdasarkan dataKey dengan pemetaan fallback
         let rawData = globalState.result[dataKey];
 
         if (!rawData || (Array.isArray(rawData) && rawData.length === 0)) {
@@ -536,23 +589,36 @@
             });
         }
 
+        // Tampilkan Tombol "Tambah Siswa" hanya di Halaman Data Siswa
+        const actionHeaderBtnContainer = document.getElementById('table-actions-container'); // jika ada
+        const isSiswaPage = (dataKey === 'dataSiswa');
+
         recordCount.textContent = rawData.length;
 
         if (rawData.length === 0) {
             thead.innerHTML = '';
-            tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400 italic">Tidak ada data ditemukan untuk kategori ini.</td></tr>`;
+            tbody.innerHTML = `
+                <tr>
+                    <td class="p-8 text-center text-slate-400 italic">
+                        Tidak ada data ditemukan. 
+                        ${isSiswaPage ? '<br><button onclick="openSiswaModal(\'add\')" class="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold">+ Tambah Siswa Pertama</button>' : ''}
+                    </td>
+                </tr>`;
             return;
         }
 
         const keys = Object.keys(rawData[0]);
 
+        // Render Header Tabel
         thead.innerHTML = `
             <tr>
                 <th class="p-3 w-12 text-center">No</th>
                 ${keys.map(k => `<th class="p-3 whitespace-nowrap">${formatHeaderLabel(k)}</th>`).join('')}
+                ${isSiswaPage ? `<th class="p-3 text-center w-28">Aksi</th>` : ''}
             </tr>
         `;
 
+        // Render Baris Data Tabel
         tbody.innerHTML = rawData.map((row, index) => `
             <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                 <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
@@ -561,6 +627,16 @@
                     if (typeof cellVal === 'object') cellVal = JSON.stringify(cellVal);
                     return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
                 }).join('')}
+                ${isSiswaPage ? `
+                    <td class="p-3 text-center whitespace-nowrap">
+                        <button onclick="openSiswaModal('edit', ${index})" class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
+                            <i class="fa-solid fa-pen"></i> Edit
+                        </button>
+                        <button onclick="handleDeleteSiswa(${index})" class="px-2 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
+                            <i class="fa-solid fa-trash"></i> Hapus
+                        </button>
+                    </td>
+                ` : ''}
             </tr>
         `).join('');
     }
@@ -598,6 +674,92 @@
         sidebar.classList.toggle('hidden');
         sidebar.classList.toggle('absolute');
         sidebar.classList.toggle('h-full');
+    }
+
+        // --- KHUSUS CRUD DATA PESERTA DIDIK ---
+    let currentSiswaList = [];
+
+    function openSiswaModal(mode, index = null) {
+        const modal = document.getElementById('modal-siswa');
+        const title = document.getElementById('modal-siswa-title');
+        const form = document.getElementById('form-siswa');
+        
+        // Dapatkan data siswa saat ini
+        currentSiswaList = globalState.result.data || globalState.result.dataSiswa || globalState.result.siswa || [];
+
+        modal.classList.remove('hidden');
+
+        if (mode === 'add') {
+            title.textContent = 'Tambah Peserta Didik';
+            form.reset();
+            document.getElementById('siswa-row-index').value = '';
+        } else if (mode === 'edit' && index !== null) {
+            title.textContent = 'Edit Peserta Didik';
+            const item = currentSiswaList[index];
+            
+            document.getElementById('siswa-row-index').value = index;
+            document.getElementById('siswa-nama').value = item.nama || item.nama_siswa || item['Nama/Key'] || '';
+            document.getElementById('siswa-unit').value = item.unit || 'PAUD 1';
+            document.getElementById('siswa-kelas').value = item.kelas || item.kelompok || '';
+            document.getElementById('siswa-jk').value = item.jenisKelamin || item.jk || 'L';
+            document.getElementById('siswa-nisn').value = item.nisn || item.nis || '';
+        }
+    }
+
+    function closeSiswaModal() {
+        document.getElementById('modal-siswa').classList.add('hidden');
+    }
+
+    async function handleSaveSiswa(e) {
+        e.preventDefault();
+        const btnSimpan = document.getElementById('btn-simpan-siswa');
+        const rowIndex = document.getElementById('siswa-row-index').value;
+        const isEdit = rowIndex !== '';
+
+        const payload = {
+            action: isEdit ? 'updateSiswa' : 'createSiswa',
+            rowIndex: rowIndex,
+            nama: document.getElementById('siswa-nama').value,
+            unit: document.getElementById('siswa-unit').value,
+            kelas: document.getElementById('siswa-kelas').value,
+            jenisKelamin: document.getElementById('siswa-jk').value,
+            nisn: document.getElementById('siswa-nisn').value
+        };
+
+        btnSimpan.disabled = true;
+        btnSimpan.textContent = "Saving...";
+
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            closeSiswaModal();
+            fetchData(); // Refresh data otomatis dari Google Sheets
+        } catch (err) {
+            alert("Gagal menyimpan data siswa: " + err.message);
+        } finally {
+            btnSimpan.disabled = false;
+            btnSimpan.textContent = "Simpan Data";
+        }
+    }
+
+    async function handleDeleteSiswa(index) {
+        if (!confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) return;
+
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'deleteSiswa',
+                    rowIndex: index
+                })
+            });
+            fetchData(); // Refresh data
+        } catch (err) {
+            alert("Gagal menghapus data: " + err.message);
+        }
     }
 </script>
 </body>
