@@ -4,30 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - PAUD IT Al-Kautsar</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .sidebar-item-active {
-            background-color: #1e293b;
-            color: #38bdf8;
-            border-left: 4px solid #38bdf8;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 3px;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .sidebar-item-active { background-color: #1e293b; color: #ffffff; border-left: 4px solid #06b6d4; }
     </style>
 </head>
 <body class="bg-slate-100 font-sans antialiased text-slate-800 flex h-screen overflow-hidden">
 
-    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 hidden md:flex z-20">
+    <!-- SIDEBAR -->
+    <aside id="sidebar-container" class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 hidden md:flex z-20">
         <div>
             <div class="h-16 flex items-center gap-3 px-6 bg-slate-950 border-b border-slate-800">
                 <i class="fa-solid fa-graduation-cap text-2xl text-cyan-400"></i>
@@ -108,8 +100,10 @@
         </div>
     </aside>
 
+    <!-- CONTENT WRAPPER -->
     <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         
+        <!-- HEADER -->
         <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm">
             <div class="flex items-center gap-4">
                 <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-600 hover:text-slate-900 focus:outline-none">
@@ -140,8 +134,10 @@
             </div>
         </header>
 
+        <!-- MAIN AREA -->
         <main class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50">
             
+            <!-- SECTION 1: BERANDA -->
             <section id="page-beranda" class="space-y-6">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -240,7 +236,26 @@
                 </div>
             </section>
 
+            <!-- SECTION 2: GENERIC TABLE / PESERTA DIDIK -->
             <section id="page-generic" class="hidden space-y-4">
+                
+                <!-- CONTAINER SUB-TAB & TOMBOL TAMBAH (HANYA MUNCUL DI DATA SISWA) -->
+                <div id="siswa-tab-container" class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex bg-slate-200 p-1 rounded-lg text-xs font-semibold">
+                        <button id="tab-paud1" onclick="switchSiswaTab('Master Data Siswa PAUD 1')" class="px-4 py-1.5 rounded-md bg-white text-slate-800 shadow-sm transition">
+                            PAUD 1
+                        </button>
+                        <button id="tab-paud2" onclick="switchSiswaTab('Master Data Siswa PAUD 2')" class="px-4 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">
+                            PAUD 2
+                        </button>
+                    </div>
+
+                    <button onclick="openModalSiswa('add')" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition">
+                        <i class="fa-solid fa-plus"></i> Tambah Siswa Baru
+                    </button>
+                </div>
+                
+                <!-- FITUR CARI DATA -->
                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div class="relative w-full sm:w-72">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
@@ -251,13 +266,14 @@
                     </div>
                 </div>
 
+                <!-- DYNAMIC TABEL -->
                 <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto custom-scrollbar">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead id="generic-table-head" class="bg-slate-900 text-slate-200 uppercase font-semibold">
-                                </thead>
+                            </thead>
                             <tbody id="generic-table-body" class="divide-y divide-slate-100 text-slate-700">
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -266,248 +282,334 @@
         </main>
     </div>
 
+    <!-- MODAL FORM SISWA -->
+    <div id="modal-siswa" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold text-sm tracking-wide">Tambah Data Peserta Didik</h3>
+                <button onclick="closeModalSiswa()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="form-siswa" onsubmit="handleSaveSiswa(event)" class="p-6 overflow-y-auto space-y-4 text-xs custom-scrollbar">
+                <input type="hidden" id="siswa-row-index">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Nama Lengkap</label>
+                        <input type="text" id="input-nama" required placeholder="Masukkan nama siswa" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Kelompok / Kelas</label>
+                        <input type="text" id="input-kelas" placeholder="contoh: PAUD IT AL-KAUTSAR 1 - A1" required class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Jenis Kelamin (JK)</label>
+                        <select id="input-jk" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                            <option value="L">Laki-laki (L)</option>
+                            <option value="P">Perempuan (P)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">NISN</label>
+                        <input type="text" id="input-nisn" placeholder="Nomor NISN" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Tempat Lahir</label>
+                        <input type="text" id="input-tempatLahir" placeholder="Kota / Kabupaten" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Tanggal Lahir</label>
+                        <input type="date" id="input-tanggalLahir" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">NIK</label>
+                        <input type="text" id="input-nik" placeholder="Nomor Induk Kependudukan" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Agama</label>
+                        <input type="text" id="input-agama" value="Islam" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Alamat Tempat Tinggal</label>
+                    <textarea id="input-alamat" rows="2" placeholder="Nama jalan, desa/kelurahan, kecamatan" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">RT</label>
+                        <input type="text" id="input-rt" placeholder="001" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">RW</label>
+                        <input type="text" id="input-rw" placeholder="002" class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" onclick="closeModalSiswa()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 font-semibold transition">
+                        Batal
+                    </button>
+                    <button type="submit" id="btn-save-siswa" class="px-5 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 font-semibold flex items-center gap-2 transition">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Data
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LOGIKA JAVASCRIPT -->
     <script>
-        // CONFIGURATION: Ganti dengan Execution URL Google Apps Script Anda
-        const API_URL = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA-nkGLvdNemkI-NLgp14qQxPNU68YogQ3i2LaIBpzacyYBL25qTYA2w/exec";
+        // GANTI URL SESUAI DEPLOYMENT APPS SCRIPT ANDA
+        const API_URL = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA_GANTI_DENGAN_ID_DEPLOYMENT_ANDA/exec";
+        
+        let currentActiveSiswaSheet = 'Master Data Siswa PAUD 1';
 
-        // Global State Store
-        let globalState = {
-            summary: {},
-            result: {}
-        };
-        let currentActiveDataKey = null;
-
-        // Initialize App
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchData();
-        });
-
-        // API Fetching & State Handling
-        async function fetchData() {
-    const statusEl = document.getElementById('sync-status');
-    const syncText = document.getElementById('sync-text');
-    const refreshIcon = document.getElementById('refresh-icon');
-
-    // UI State Loading
-    statusEl.className = "flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-semibold text-amber-700";
-    syncText.textContent = "Syncing...";
-    refreshIcon.classList.add('fa-spin');
-
-    try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
-
-        // VALIDASI: Cek apakah response backend berupa object valid
-        if (data && typeof data === 'object') {
-            // Simpan seluruh data backend ke globalState.result
-            globalState.result = data;
-
-            // Hitung kalkulasi summary secara manual di Frontend dari data backend
-            const listSiswa = data.data || [];
-            const listBiodata = Object.keys(data.biodata || {});
-            const rekapKelasObj = data.rekapKelas || {};
+        // Navigasi Halaman SPA
+        function switchPage(pageId, pageTitle, sheetName = null) {
+            document.getElementById('page-title').textContent = pageTitle;
             
-            // Mengambil daftar unik kelompok dari data.rekapKelas atau data.data
-            const kelompokSet = new Set();
-            if (Array.isArray(listSiswa)) {
-                listSiswa.forEach(item => { if(item.kelas) kelompokSet.add(item.kelas); });
-            }
-
-            // Hitung rata-rata kehadiran jika data rekapKelas tersedia
-            let totalPersen = 0;
-            let countKelompok = 0;
-            Object.values(rekapKelasObj).forEach(val => {
-                if (val && val.persen) {
-                    let num = parseFloat(val.persen.toString().replace('%', '').replace(',', '.'));
-                    if (!isNaN(num)) {
-                        totalPersen += num;
-                        countKelompok++;
-                    }
-                }
-            });
-            const avgKehadiranVal = countKelompok > 0 ? (totalPersen / countKelompok).toFixed(1) + "%" : "0%";
-
-            // Set globalState.summary
-            globalState.summary = {
-                totalGuru: listBiodata.length || 0,
-                totalKelompok: kelompokSet.size || Object.keys(rekapKelasObj).length || 0,
-                totalSiswa: listSiswa.length || 0,
-                avgKehadiran: avgKehadiranVal
-            };
-
-            // Update Status Indicator ke Online
-            statusEl.className = "flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold text-emerald-700";
-            syncText.textContent = "Online";
-
-            // Render ulang tampilan Dashboard
-            renderDashboardMetrics();
-            renderDashboardSummaryTable();
-            
-            if (currentActiveDataKey) {
-                renderGenericTable(currentActiveDataKey);
-            }
-        } else {
-            throw new Error("Response backend kosong atau format salah");
-        }
-    } catch (error) {
-        console.error("API Error:", error);
-        statusEl.className = "flex items-center gap-2 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full text-xs font-semibold text-rose-700";
-        syncText.textContent = "Error Sync";
-    } finally {
-        refreshIcon.classList.remove('fa-spin');
-    }
-}
-
-        // Render Dashboard Cards Metrics
-        function renderDashboardMetrics() {
-            const s = globalState.summary;
-            document.getElementById('metric-guru').textContent = s.totalGuru ?? 0;
-            document.getElementById('metric-kelompok').textContent = s.totalKelompok ?? 0;
-            document.getElementById('metric-siswa').textContent = s.totalSiswa ?? 0;
-            document.getElementById('metric-kehadiran').textContent = s.avgKehadiran ?? "0%";
-        }
-
-        // Render Dashboard Summary Table
-        function renderDashboardSummaryTable() {
-    const tbody = document.getElementById('dashboard-summary-tbody');
-    const rekapObj = globalState.result.rekapKelas || {};
-    const keys = Object.keys(rekapObj);
-
-    if (keys.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Data rekapitulasi belum tersedia.</td></tr>`;
-        return;
-    }
-
-    // Filter agar key yang duplikat (UPPERCASE) tidak double render
-    const uniqueKeys = keys.filter(k => k === k.toUpperCase());
-    const displayKeys = uniqueKeys.length > 0 ? uniqueKeys : keys;
-
-    tbody.innerHTML = displayKeys.map(key => {
-        const item = rekapObj[key];
-        return `
-            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                <td class="p-3 font-semibold text-slate-700">${key}</td>
-                <td class="p-3 text-slate-600">-</td>
-                <td class="p-3 text-center font-bold text-slate-800">${item.jumlahInput || 0}</td>
-                <td class="p-3 text-center">
-                    <span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold text-xs">
-                        ${item.tampilan || '0%'}
-                    </span>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-        // Single Page Navigation Controller
-        function switchPage(pageId, titleText, dataKey = null) {
-            document.getElementById('page-title').textContent = titleText;
-            currentActiveDataKey = dataKey;
-
-            // Highlight Active Sidebar Item
+            // Highlight active sidebar
             document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('sidebar-item-active');
-                if (btn.getAttribute('data-page') === pageId) {
+                if(btn.getAttribute('data-page') === pageId) {
                     btn.classList.add('sidebar-item-active');
+                } else {
+                    btn.classList.remove('sidebar-item-active');
                 }
             });
 
             const pageBeranda = document.getElementById('page-beranda');
             const pageGeneric = document.getElementById('page-generic');
+            const tabContainer = document.getElementById('siswa-tab-container');
 
             if (pageId === 'beranda') {
                 pageBeranda.classList.remove('hidden');
                 pageGeneric.classList.add('hidden');
+            } else if (pageId === 'dataSiswa') {
+                pageBeranda.classList.add('hidden');
+                pageGeneric.classList.remove('hidden');
+                tabContainer.classList.remove('hidden'); // Tampilkan subtab PAUD 1 & 2
+                switchSiswaTab(currentActiveSiswaSheet);
             } else {
                 pageBeranda.classList.add('hidden');
                 pageGeneric.classList.remove('hidden');
-                if (dataKey) {
-                    renderGenericTable(dataKey);
-                }
+                tabContainer.classList.add('hidden'); // Sembunyikan subtab untuk sheet generik biasa
+                fetchGenericSheetData(sheetName);
             }
         }
 
-        // Dynamic Generic Table Builder
-        function renderGenericTable(dataKey) {
-    const thead = document.getElementById('generic-table-head');
-    const tbody = document.getElementById('generic-table-body');
-    const recordCount = document.getElementById('record-count');
-    const searchInput = document.getElementById('table-search-input');
-    
-    searchInput.value = '';
-    let rawData = globalState.result[dataKey] || [];
-
-    // Jika data berupa Object (Map), konversi menjadi Array of Objects
-    if (!Array.isArray(rawData) && typeof rawData === 'object') {
-        rawData = Object.keys(rawData).map(key => {
-            const val = rawData[key];
-            return typeof val === 'object' ? { "Nama/Key": key, ...val } : { "Nama/Key": key, "Nilai": val };
-        });
-    }
-
-    recordCount.textContent = rawData.length;
-
-    if (rawData.length === 0) {
-        thead.innerHTML = '';
-        tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400 italic">Tidak ada data ditemukan untuk kategori ini.</td></tr>`;
-        return;
-    }
-
-    const keys = Object.keys(rawData[0]);
-
-    thead.innerHTML = `
-        <tr>
-            <th class="p-3 w-12 text-center">No</th>
-            ${keys.map(k => `<th class="p-3 whitespace-nowrap">${formatHeaderLabel(k)}</th>`).join('')}
-        </tr>
-    `;
-
-    tbody.innerHTML = rawData.map((row, index) => `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-            <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
-            ${keys.map(k => {
-                let cellVal = row[k];
-                if (typeof cellVal === 'object') cellVal = JSON.stringify(cellVal);
-                return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
-            }).join('')}
-        </tr>
-    `).join('');
-}
-
-        // Capitalize Key Label Formatter
-        function formatHeaderLabel(str) {
-            return str
-                .replace(/([A-Z])/g, ' $1')
-                .replace(/^./, s => s.toUpperCase())
-                .replace(/_/g, ' ');
-        }
-
-        // Live Table Search Engine
-        function filterTable() {
-            const input = document.getElementById('table-search-input').value.toLowerCase();
+        // Fetch Data Siswa dari Apps Script
+        async function loadSiswaData(sheetName) {
+            currentActiveSiswaSheet = sheetName;
             const tbody = document.getElementById('generic-table-body');
-            const rows = tbody.getElementsByTagName('tr');
-            let visibleCount = 0;
+            const thead = document.getElementById('generic-table-head');
+            
+            tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-slate-400 italic"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat data siswa dari ${sheetName}...</td></tr>`;
 
-            for (let i = 0; i < rows.length; i++) {
-                const text = rows[i].textContent.toLowerCase();
-                if (text.includes(input)) {
-                    rows[i].style.display = "";
-                    visibleCount++;
-                } else {
-                    rows[i].style.display = "none";
+            try {
+                const res = await fetch(`${API_URL}?action=readSiswa&sheetName=${encodeURIComponent(sheetName)}`);
+                const data = await res.json();
+
+                document.getElementById('record-count').textContent = data.length;
+
+                thead.innerHTML = `
+                    <tr>
+                        <th class="p-3 text-center">No</th>
+                        <th class="p-3">Nama Siswa</th>
+                        <th class="p-3">Kelas</th>
+                        <th class="p-3 text-center">JK</th>
+                        <th class="p-3">NISN</th>
+                        <th class="p-3">Tempat Lahir</th>
+                        <th class="p-3">Tanggal Lahir</th>
+                        <th class="p-3">NIK</th>
+                        <th class="p-3">Agama</th>
+                        <th class="p-3">Alamat</th>
+                        <th class="p-3 text-center">RT/RW</th>
+                        <th class="p-3 text-center">Aksi</th>
+                    </tr>
+                `;
+
+                if(!data || data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-slate-400 italic">Belum ada data siswa.</td></tr>`;
+                    return;
                 }
+
+                tbody.innerHTML = data.map((item, idx) => `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100">
+                        <td class="p-3 text-center font-medium text-slate-400">${idx + 1}</td>
+                        <td class="p-3 font-semibold text-slate-800">${item.nama || '-'}</td>
+                        <td class="p-3">${item.kelas || '-'}</td>
+                        <td class="p-3 text-center font-bold ${item.jk === 'L' ? 'text-blue-600' : 'text-pink-600'}">${item.jk || '-'}</td>
+                        <td class="p-3">${item.nisn || '-'}</td>
+                        <td class="p-3">${item.tempatLahir || '-'}</td>
+                        <td class="p-3">${item.tanggalLahir || '-'}</td>
+                        <td class="p-3">${item.nik || '-'}</td>
+                        <td class="p-3">${item.agama || '-'}</td>
+                        <td class="p-3">${item.alamat || '-'}</td>
+                        <td class="p-3 text-center">${item.rt || '0'}/${item.rw || '0'}</td>
+                        <td class="p-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick='openModalSiswa("edit", ${JSON.stringify(item)})' class="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition" title="Edit">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteSiswa(${item.rowIndex}, '${item.nama}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded transition" title="Hapus">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-rose-500">Gagal memuat data siswa. Pastikan API URL sudah benar.</td></tr>`;
             }
-            document.getElementById('record-count').textContent = visibleCount;
         }
 
-        // Mobile Sidebar Toggle
-        function toggleMobileSidebar() {
-            const sidebar = document.querySelector('aside');
-            sidebar.classList.toggle('hidden');
-            sidebar.classList.toggle('absolute');
-            sidebar.classList.toggle('h-full');
+        // Beralih Sub-Tab PAUD 1 / PAUD 2
+        function switchSiswaTab(sheetName) {
+            const btn1 = document.getElementById('tab-paud1');
+            const btn2 = document.getElementById('tab-paud2');
+            
+            if (sheetName.includes('PAUD 1')) {
+                btn1.className = "px-4 py-1.5 rounded-md bg-white text-slate-800 shadow-sm transition";
+                btn2.className = "px-4 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition";
+            } else {
+                btn2.className = "px-4 py-1.5 rounded-md bg-white text-slate-800 shadow-sm transition";
+                btn1.className = "px-4 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition";
+            }
+            loadSiswaData(sheetName);
         }
+
+        // Buka Pop-Up Form Modal
+        function openModalSiswa(mode, data = null) {
+            const modal = document.getElementById('modal-siswa');
+            const title = document.getElementById('modal-title');
+            modal.classList.remove('hidden');
+
+            if (mode === 'add') {
+                title.textContent = `Tambah Siswa Baru (${currentActiveSiswaSheet})`;
+                document.getElementById('form-siswa').reset();
+                document.getElementById('siswa-row-index').value = "";
+            } else {
+                title.textContent = `Edit Data Siswa - ${data.nama}`;
+                document.getElementById('siswa-row-index').value = data.rowIndex;
+                document.getElementById('input-nama').value = data.nama || "";
+                document.getElementById('input-kelas').value = data.kelas || "";
+                document.getElementById('input-jk').value = data.jk || "L";
+                document.getElementById('input-nisn').value = data.nisn || "";
+                document.getElementById('input-tempatLahir').value = data.tempatLahir || "";
+                document.getElementById('input-tanggalLahir').value = data.tanggalLahir || "";
+                document.getElementById('input-nik').value = data.nik || "";
+                document.getElementById('input-agama').value = data.agama || "Islam";
+                document.getElementById('input-alamat').value = data.alamat || "";
+                document.getElementById('input-rt').value = data.rt || "";
+                document.getElementById('input-rw').value = data.rw || "";
+            }
+        }
+
+        function closeModalSiswa() {
+            document.getElementById('modal-siswa').classList.add('hidden');
+        }
+
+        // Simpan Data (Tambah / Update)
+        async function handleSaveSiswa(e) {
+            e.preventDefault();
+            const rowIndex = document.getElementById('siswa-row-index').value;
+            const action = rowIndex ? "update" : "create";
+
+            const payload = {
+                action: action,
+                sheetName: currentActiveSiswaSheet,
+                rowIndex: parseInt(rowIndex),
+                nama: document.getElementById('input-nama').value,
+                kelas: document.getElementById('input-kelas').value,
+                jk: document.getElementById('input-jk').value,
+                nisn: document.getElementById('input-nisn').value,
+                tempatLahir: document.getElementById('input-tempatLahir').value,
+                tanggalLahir: document.getElementById('input-tanggalLahir').value,
+                nik: document.getElementById('input-nik').value,
+                agama: document.getElementById('input-agama').value,
+                alamat: document.getElementById('input-alamat').value,
+                rt: document.getElementById('input-rt').value,
+                rw: document.getElementById('input-rw').value
+            };
+
+            const btnSave = document.getElementById('btn-save-siswa');
+            btnSave.disabled = true;
+            btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                closeModalSiswa();
+                loadSiswaData(currentActiveSiswaSheet);
+            } catch (err) {
+                alert("Terjadi kendala saat menyimpan data: " + err);
+            } finally {
+                btnSave.disabled = false;
+                btnSave.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Simpan Data`;
+            }
+        }
+
+        // Hapus Data Siswa
+        async function deleteSiswa(rowIndex, nama) {
+            if (!confirm(`Apakah Anda yakin ingin menghapus data "${nama}"?`)) return;
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: "delete",
+                        sheetName: currentActiveSiswaSheet,
+                        rowIndex: rowIndex
+                    })
+                });
+                loadSiswaData(currentActiveSiswaSheet);
+            } catch (err) {
+                alert("Gagal menghapus data.");
+            }
+        }
+
+        // Filter Pencarian Real-Time di Tabel
+        function filterTable() {
+            const input = document.getElementById("table-search-input").value.toUpperCase();
+            const tbody = document.getElementById("generic-table-body");
+            const tr = tbody.getElementsByTagName("tr");
+
+            for (let i = 0; i < tr.length; i++) {
+                let textFound = false;
+                const td = tr[i].getElementsByTagName("td");
+                for (let j = 0; j < td.length; j++) {
+                    if (td[j]) {
+                        if (td[j].innerText.toUpperCase().indexOf(input) > -1) {
+                            textFound = true;
+                            break;
+                        }
+                    }
+                }
+                tr[i].style.display = textFound ? "" : "none";
+            }
+        }
+
+        // Toggle Sidebar Mobile
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar-container');
+            sidebar.classList.toggle('hidden');
+        }
+
+        // Init Data Dashboard saat halaman pertama kali terbuka
+        function fetchData() {
+            document.getElementById('sync-text').textContent = "Terhubung";
+            document.getElementById('sync-status').className = "flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold text-emerald-700";
+        }
+
+        // Run default fetch
+        window.onload = fetchData;
     </script>
 </body>
 </html>
