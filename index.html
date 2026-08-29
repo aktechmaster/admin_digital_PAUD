@@ -867,7 +867,7 @@
         }
     }
 
-    // SIMPAN / UPDATE DATA SISWA
+    // 3. PERBAIKAN PENGIRIMAN DATA SIMPAN (Payload Matching & Debug Logging)
     async function handleSaveSiswa(e) {
         if (e && e.preventDefault) e.preventDefault();
         
@@ -906,6 +906,8 @@
         }
 
         try {
+            console.log("Mengirim Payload ke GAS:", payload);
+
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -917,16 +919,22 @@
             try {
                 result = JSON.parse(textResult);
             } catch (parseErr) {
-                throw new Error("Respon Backend Bukan JSON Valid. Respon: " + textResult.substring(0, 100));
+                console.error("Respon mentah dari GAS (bukan JSON):", textResult);
+                throw new Error("Respon Backend Bukan JSON Valid. Cek tab Konsol/Jaringan.");
             }
 
-            if (result.status === 'success' || result.result === 'success') {
+            console.log("Respon dari Backend GAS:", result);
+
+            if (result.status === 'success' || result.result === 'success' || result.status === 'sukses') {
                 closeSiswaModal();
                 fetchData();
             } else {
-                alert("Gagal menyimpan: " + (result.message || result.error || "Terjadi kesalahan pada backend"));
+                // Menangkap pesan asli dari GAS (pesan, message, atau error)
+                const errorDetail = result.pesan || result.message || result.error || JSON.stringify(result);
+                alert("Gagal menyimpan: " + errorDetail);
             }
         } catch (err) {
+            console.error("Error Transaksi:", err);
             alert("Error Transaksi: " + err.message);
         } finally {
             if (btnSimpan) {
@@ -936,7 +944,7 @@
         }
     }
 
-    // HAPUS SISWA
+    // 4. PERBAIKAN HAPUS SISWA (Debug Logging)
     async function handleDeleteSiswa(originalIndex) {
         const item = activeRenderedData[originalIndex];
         if (!item) {
@@ -960,6 +968,8 @@
         };
 
         try {
+            console.log("Mengirim Payload Hapus ke GAS:", payload);
+
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -971,15 +981,20 @@
             try {
                 result = JSON.parse(textResult);
             } catch (parseErr) {
+                console.error("Respon mentah Hapus dari GAS:", textResult);
                 throw new Error("Respon Backend Bukan JSON Valid.");
             }
 
-            if (result.status === 'success' || result.result === 'success') {
+            console.log("Respon Hapus dari Backend GAS:", result);
+
+            if (result.status === 'success' || result.result === 'success' || result.status === 'sukses') {
                 fetchData();
             } else {
-                alert("Gagal menghapus: " + (result.message || result.error || "Terjadi kesalahan backend"));
+                const errorDetail = result.pesan || result.message || result.error || JSON.stringify(result);
+                alert("Gagal menghapus: " + errorDetail);
             }
         } catch (err) {
+            console.error("Error Hapus Transaksi:", err);
             alert("Error Transaksi: " + err.message);
         }
     }
