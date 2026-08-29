@@ -403,7 +403,7 @@
     </div>
 </div>
 
-    <script>
+   <script>
     // CONFIGURATION: Execution URL Google Apps Script
     const API_URL = "https://script.google.com/macros/s/AKfycbxewrhf9tTD4FIA-nkGLvdNemkI-NLgp14qQxPNU68YogQ3i2LaIBpzacyYBL25qTYA2w/exec";
 
@@ -414,6 +414,18 @@
     };
     let currentActiveDataKey = null;
     let activeRenderedData = [];
+
+    // HELPER: Format Label Header (Mencegah Uncaught ReferenceError)
+    function formatHeaderLabel(str) {
+        if (!str) return '';
+        return String(str).replace(/_/g, ' ').toUpperCase();
+    }
+
+    // HELPER: Tutup Modal Siswa
+    function closeSiswaModal() {
+        const modal = document.getElementById('modal-siswa');
+        if (modal) modal.classList.add('hidden');
+    }
 
     // 1. UNIVERSAL ELEMENT FINDER
     // Mencari elemen input/select di dalam modal berdasarkan ID, Name, atau Teks Label
@@ -687,264 +699,264 @@
     }
 
     // 1. PERBAIKAN RENDER TABLE (Menghilangkan Kolom NO Ganda)
-function renderGenericTable(dataKey) {
-    const thead = document.getElementById('generic-table-head');
-    const tbody = document.getElementById('generic-table-body');
-    const recordCount = document.getElementById('record-count');
-    const searchInput = document.getElementById('table-search-input');
-    
-    if (searchInput) searchInput.value = '';
-    
-    let rawData = globalState.result[dataKey];
+    function renderGenericTable(dataKey) {
+        const thead = document.getElementById('generic-table-head');
+        const tbody = document.getElementById('generic-table-body');
+        const recordCount = document.getElementById('record-count');
+        const searchInput = document.getElementById('table-search-input');
+        
+        if (searchInput) searchInput.value = '';
+        
+        let rawData = globalState.result[dataKey];
 
-    if (!rawData || (Array.isArray(rawData) && rawData.length === 0)) {
-        if (dataKey === 'dataSiswa') {
-            rawData = globalState.result.data || globalState.result.dataSiswa || globalState.result.siswa || globalState.result.pesertaDidik || [];
-        } else if (dataKey === 'biodata') {
-            rawData = globalState.result.biodata || globalState.result.guru || globalState.result.staf || [];
-        } else {
-            rawData = rawData || [];
+        if (!rawData || (Array.isArray(rawData) && rawData.length === 0)) {
+            if (dataKey === 'dataSiswa') {
+                rawData = globalState.result.data || globalState.result.dataSiswa || globalState.result.siswa || globalState.result.pesertaDidik || [];
+            } else if (dataKey === 'biodata') {
+                rawData = globalState.result.biodata || globalState.result.guru || globalState.result.staf || [];
+            } else {
+                rawData = rawData || [];
+            }
         }
-    }
 
-    if (!Array.isArray(rawData) && typeof rawData === 'object') {
-        rawData = Object.keys(rawData).map(key => {
-            const val = rawData[key];
-            return typeof val === 'object' ? { "Nama/Key": key, ...val } : { "Nama/Key": key, "Nilai": val };
-        });
-    }
+        if (!Array.isArray(rawData) && typeof rawData === 'object') {
+            rawData = Object.keys(rawData).map(key => {
+                const val = rawData[key];
+                return typeof val === 'object' ? { "Nama/Key": key, ...val } : { "Nama/Key": key, "Nilai": val };
+            });
+        }
 
-    activeRenderedData = rawData;
-    const isSiswaPage = (dataKey === 'dataSiswa');
-    if (recordCount) recordCount.textContent = rawData.length;
+        activeRenderedData = rawData;
+        const isSiswaPage = (dataKey === 'dataSiswa');
+        if (recordCount) recordCount.textContent = rawData.length;
 
-    if (rawData.length === 0) {
-        if (thead) thead.innerHTML = '';
-        if (tbody) tbody.innerHTML = `
-            <tr>
-                <td class="p-8 text-center text-slate-400 italic">
-                    Tidak ada data ditemukan. 
-                    ${isSiswaPage ? '<br><button onclick="openSiswaModal(\'add\')" class="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold">+ Tambah Siswa Pertama</button>' : ''}
-                </td>
-            </tr>`;
-        return;
-    }
-
-    // DISARING: Keluarkan kolom bernama "no", "nomor", atau "#" agar tidak ganda
-    const keys = Object.keys(rawData[0]).filter(k => {
-        const cleanKey = k.toLowerCase().trim();
-        return !k.startsWith('_') && cleanKey !== 'no' && cleanKey !== 'nomor' && cleanKey !== '#';
-    });
-
-    if (thead) {
-        thead.innerHTML = `
-            <tr>
-                <th class="p-3 w-12 text-center">NO</th>
-                ${keys.map(k => `<th class="p-3 whitespace-nowrap">${formatHeaderLabel(k)}</th>`).join('')}
-                ${isSiswaPage ? `<th class="p-3 text-center w-28">AKSI</th>` : ''}
-            </tr>
-        `;
-    }
-
-    if (tbody) {
-        tbody.innerHTML = rawData.map((row, index) => `
-            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
-                ${keys.map(k => {
-                    let cellVal = row[k];
-                    if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
-                    return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
-                }).join('')}
-                ${isSiswaPage ? `
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <button onclick="openSiswaModal('edit', ${index})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
-                            <i class="fa-solid fa-pen"></i> Edit
-                        </button>
-                        <button onclick="handleDeleteSiswa(${index})" class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
-                            <i class="fa-solid fa-trash"></i> Hapus
-                        </button>
+        if (rawData.length === 0) {
+            if (thead) thead.innerHTML = '';
+            if (tbody) tbody.innerHTML = `
+                <tr>
+                    <td class="p-8 text-center text-slate-400 italic">
+                        Tidak ada data ditemukan. 
+                        ${isSiswaPage ? '<br><button onclick="openSiswaModal(\'add\')" class="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold">+ Tambah Siswa Pertama</button>' : ''}
                     </td>
-                ` : ''}
-            </tr>
-        `).join('');
-    }
-}
-
-// 2. PERBAIKAN PEMBACAAN DATA ROW (Fallback jika _rowNum belum terdefinisi)
-function openSiswaModal(mode, index = null) {
-    const modal = document.getElementById('modal-siswa');
-    const title = document.getElementById('modal-siswa-title');
-    const form = document.getElementById('form-siswa');
-
-    if (!modal) return;
-    modal.classList.remove('hidden');
-
-    const elRowIndex = document.getElementById('siswa-row-index');
-    const elNama = document.getElementById('siswa-nama');
-    const elUnit = document.getElementById('siswa-unit');
-    const elKelas = document.getElementById('siswa-kelas');
-    const elJk = document.getElementById('siswa-jk');
-    const elNisn = document.getElementById('siswa-nisn');
-    const elTempatLahir = document.getElementById('siswa-tempat-lahir');
-    const elTglLahir = document.getElementById('siswa-tgl-lahir');
-    const elNik = document.getElementById('siswa-nik');
-    const elAgama = document.getElementById('siswa-agama');
-    const elAlamat = document.getElementById('siswa-alamat');
-    const elRt = document.getElementById('siswa-rt');
-    const elRw = document.getElementById('siswa-rw');
-
-    if (mode === 'add' || index === null) {
-        if (title) title.textContent = 'Tambah Peserta Didik';
-        if (form) form.reset();
-        if (elRowIndex) elRowIndex.value = '';
-        if (elAgama) elAgama.value = 'Islam';
-    } else if (mode === 'edit' && index !== null) {
-        if (title) title.textContent = 'Edit Peserta Didik';
-        const item = activeRenderedData[index];
-
-        if (item) {
-            // Gunakan _rowNum, atau fallback ke kalkulasi index + 2 (header = row 1)
-            const rowNumber = item._rowNum || item.rowNum || (index + 2);
-            if (elRowIndex) elRowIndex.value = rowNumber;
-            
-            // Pemetaan nama sheet presisi
-            const rawSheet = item._sheetName || getPropValue(item, ['sumber sheet', 'sumber_sheet', 'unit']);
-            let formattedSheet = "Master Data Siswa PAUD 1";
-            if (rawSheet.includes("2")) formattedSheet = "Master Data Siswa PAUD 2";
-            
-            if (elUnit) setSelectValue(elUnit, formattedSheet);
-            if (elNama) elNama.value = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']);
-            if (elKelas) elKelas.value = getPropValue(item, ['kelas', 'kelompok']);
-            if (elJk) setSelectValue(elJk, getPropValue(item, ['jk', 'jenis kelamin', 'jeniskelamin']) || 'L');
-            if (elNisn) elNisn.value = getPropValue(item, ['nisn', 'nis']);
-            if (elTempatLahir) elTempatLahir.value = getPropValue(item, ['tempat lahir', 'tempat_lahir']);
-            if (elTglLahir) elTglLahir.value = getPropValue(item, ['tanggal lahir', 'tgl lahir', 'tanggal_lahir']);
-            if (elNik) elNik.value = getPropValue(item, ['nik']);
-            if (elAgama) elAgama.value = getPropValue(item, ['agama']) || 'Islam';
-            if (elAlamat) elAlamat.value = getPropValue(item, ['alamat']);
-            if (elRt) elRt.value = getPropValue(item, ['rt']);
-            if (elRw) elRw.value = getPropValue(item, ['rw']);
+                </tr>`;
+            return;
         }
-    }
-}
 
-// 3. PERBAIKAN PENGIRIMAN DATA SIMPAN (Payload Matching & Error Handling)
-async function handleSaveSiswa(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    
-    const btnSimpan = document.getElementById('btn-simpan-siswa');
-    const rowIndex = document.getElementById('siswa-row-index') ? document.getElementById('siswa-row-index').value : '';
-    const isEdit = Boolean(rowIndex);
-    const selectedUnitVal = document.getElementById('siswa-unit') ? document.getElementById('siswa-unit').value : '';
-
-    // Penyesuaian Nama Sheet Target
-    let sheetTarget = selectedUnitVal;
-    if (selectedUnitVal === "PAUD 1" || selectedUnitVal.includes("1")) {
-        sheetTarget = "Master Data Siswa PAUD 1";
-    } else if (selectedUnitVal === "PAUD 2" || selectedUnitVal.includes("2")) {
-        sheetTarget = "Master Data Siswa PAUD 2";
-    }
-
-    const payload = {
-        action: isEdit ? 'updateSiswa' : 'createSiswa',
-        rowNum: rowIndex,
-        sumberSheet: sheetTarget,
-        nama: document.getElementById('siswa-nama') ? document.getElementById('siswa-nama').value : '',
-        kelas: document.getElementById('siswa-kelas') ? document.getElementById('siswa-kelas').value : '',
-        jk: document.getElementById('siswa-jk') ? document.getElementById('siswa-jk').value : 'L',
-        nisn: document.getElementById('siswa-nisn') ? document.getElementById('siswa-nisn').value : '',
-        tempat_lahir: document.getElementById('siswa-tempat-lahir') ? document.getElementById('siswa-tempat-lahir').value : '',
-        tgl_lahir: document.getElementById('siswa-tgl-lahir') ? document.getElementById('siswa-tgl-lahir').value : '',
-        nik: document.getElementById('siswa-nik') ? document.getElementById('siswa-nik').value : '',
-        agama: document.getElementById('siswa-agama') ? document.getElementById('siswa-agama').value : 'Islam',
-        alamat: document.getElementById('siswa-alamat') ? document.getElementById('siswa-alamat').value : '',
-        rt: document.getElementById('siswa-rt') ? document.getElementById('siswa-rt').value : '',
-        rw: document.getElementById('siswa-rw') ? document.getElementById('siswa-rw').value : ''
-    };
-
-    if (btnSimpan) {
-        btnSimpan.disabled = true;
-        btnSimpan.textContent = "Menyimpan...";
-    }
-
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Mencegah Preflight OPTIONS CORS error pada GAS
-            body: JSON.stringify(payload)
+        // DISARING: Keluarkan kolom bernama "no", "nomor", atau "#" agar tidak ganda
+        const keys = Object.keys(rawData[0]).filter(k => {
+            const cleanKey = k.toLowerCase().trim();
+            return !k.startsWith('_') && cleanKey !== 'no' && cleanKey !== 'nomor' && cleanKey !== '#';
         });
-        
-        const textResult = await res.text();
-        let result;
-        try {
-            result = JSON.parse(textResult);
-        } catch (parseErr) {
-            throw new Error("Respon Backend Bukan JSON Valid. Respon: " + textResult.substring(0, 100));
+
+        if (thead) {
+            thead.innerHTML = `
+                <tr>
+                    <th class="p-3 w-12 text-center">NO</th>
+                    ${keys.map(k => `<th class="p-3 whitespace-nowrap">${formatHeaderLabel(k)}</th>`).join('')}
+                    ${isSiswaPage ? `<th class="p-3 text-center w-28">AKSI</th>` : ''}
+                </tr>
+            `;
         }
 
-        if (result.status === 'success' || result.result === 'success') {
-            closeSiswaModal();
-            fetchData();
-        } else {
-            alert("Gagal menyimpan: " + (result.message || result.error || "Terjadi kesalahan pada backend"));
+        if (tbody) {
+            tbody.innerHTML = rawData.map((row, index) => `
+                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                    <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
+                    ${keys.map(k => {
+                        let cellVal = row[k];
+                        if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
+                        return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
+                    }).join('')}
+                    ${isSiswaPage ? `
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <button onclick="openSiswaModal('edit', ${index})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
+                                <i class="fa-solid fa-pen"></i> Edit
+                            </button>
+                            <button onclick="handleDeleteSiswa(${index})" class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
+                                <i class="fa-solid fa-trash"></i> Hapus
+                            </button>
+                        </td>
+                    ` : ''}
+                </tr>
+            `).join('');
         }
-    } catch (err) {
-        alert("Error Transaksi: " + err.message);
-    } finally {
+    }
+
+    // 2. PERBAIKAN PEMBACAAN DATA ROW (Fallback jika _rowNum belum terdefinisi)
+    function openSiswaModal(mode, index = null) {
+        const modal = document.getElementById('modal-siswa');
+        const title = document.getElementById('modal-siswa-title');
+        const form = document.getElementById('form-siswa');
+
+        if (!modal) return;
+        modal.classList.remove('hidden');
+
+        const elRowIndex = document.getElementById('siswa-row-index');
+        const elNama = document.getElementById('siswa-nama');
+        const elUnit = document.getElementById('siswa-unit');
+        const elKelas = document.getElementById('siswa-kelas');
+        const elJk = document.getElementById('siswa-jk');
+        const elNisn = document.getElementById('siswa-nisn');
+        const elTempatLahir = document.getElementById('siswa-tempat-lahir');
+        const elTglLahir = document.getElementById('siswa-tgl-lahir');
+        const elNik = document.getElementById('siswa-nik');
+        const elAgama = document.getElementById('siswa-agama');
+        const elAlamat = document.getElementById('siswa-alamat');
+        const elRt = document.getElementById('siswa-rt');
+        const elRw = document.getElementById('siswa-rw');
+
+        if (mode === 'add' || index === null) {
+            if (title) title.textContent = 'Tambah Peserta Didik';
+            if (form) form.reset();
+            if (elRowIndex) elRowIndex.value = '';
+            if (elAgama) elAgama.value = 'Islam';
+        } else if (mode === 'edit' && index !== null) {
+            if (title) title.textContent = 'Edit Peserta Didik';
+            const item = activeRenderedData[index];
+
+            if (item) {
+                // Gunakan _rowNum, atau fallback ke kalkulasi index + 2 (header = row 1)
+                const rowNumber = item._rowNum || item.rowNum || (index + 2);
+                if (elRowIndex) elRowIndex.value = rowNumber;
+                
+                // Pemetaan nama sheet presisi
+                const rawSheet = item._sheetName || getPropValue(item, ['sumber sheet', 'sumber_sheet', 'unit']);
+                let formattedSheet = "Master Data Siswa PAUD 1";
+                if (String(rawSheet).includes("2")) formattedSheet = "Master Data Siswa PAUD 2";
+                
+                if (elUnit) setSelectValue(elUnit, formattedSheet);
+                if (elNama) elNama.value = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']);
+                if (elKelas) elKelas.value = getPropValue(item, ['kelas', 'kelompok']);
+                if (elJk) setSelectValue(elJk, getPropValue(item, ['jk', 'jenis kelamin', 'jeniskelamin']) || 'L');
+                if (elNisn) elNisn.value = getPropValue(item, ['nisn', 'nis']);
+                if (elTempatLahir) elTempatLahir.value = getPropValue(item, ['tempat lahir', 'tempat_lahir']);
+                if (elTglLahir) elTglLahir.value = getPropValue(item, ['tanggal lahir', 'tgl lahir', 'tanggal_lahir']);
+                if (elNik) elNik.value = getPropValue(item, ['nik']);
+                if (elAgama) elAgama.value = getPropValue(item, ['agama']) || 'Islam';
+                if (elAlamat) elAlamat.value = getPropValue(item, ['alamat']);
+                if (elRt) elRt.value = getPropValue(item, ['rt']);
+                if (elRw) elRw.value = getPropValue(item, ['rw']);
+            }
+        }
+    }
+
+    // 3. PERBAIKAN PENGIRIMAN DATA SIMPAN (Payload Matching & Error Handling)
+    async function handleSaveSiswa(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        
+        const btnSimpan = document.getElementById('btn-simpan-siswa');
+        const rowIndex = document.getElementById('siswa-row-index') ? document.getElementById('siswa-row-index').value : '';
+        const isEdit = Boolean(rowIndex);
+        const selectedUnitVal = document.getElementById('siswa-unit') ? document.getElementById('siswa-unit').value : '';
+
+        // Penyesuaian Nama Sheet Target
+        let sheetTarget = selectedUnitVal;
+        if (selectedUnitVal === "PAUD 1" || selectedUnitVal.includes("1")) {
+            sheetTarget = "Master Data Siswa PAUD 1";
+        } else if (selectedUnitVal === "PAUD 2" || selectedUnitVal.includes("2")) {
+            sheetTarget = "Master Data Siswa PAUD 2";
+        }
+
+        const payload = {
+            action: isEdit ? 'updateSiswa' : 'createSiswa',
+            rowNum: rowIndex,
+            sumberSheet: sheetTarget,
+            nama: document.getElementById('siswa-nama') ? document.getElementById('siswa-nama').value : '',
+            kelas: document.getElementById('siswa-kelas') ? document.getElementById('siswa-kelas').value : '',
+            jk: document.getElementById('siswa-jk') ? document.getElementById('siswa-jk').value : 'L',
+            nisn: document.getElementById('siswa-nisn') ? document.getElementById('siswa-nisn').value : '',
+            tempat_lahir: document.getElementById('siswa-tempat-lahir') ? document.getElementById('siswa-tempat-lahir').value : '',
+            tgl_lahir: document.getElementById('siswa-tgl-lahir') ? document.getElementById('siswa-tgl-lahir').value : '',
+            nik: document.getElementById('siswa-nik') ? document.getElementById('siswa-nik').value : '',
+            agama: document.getElementById('siswa-agama') ? document.getElementById('siswa-agama').value : 'Islam',
+            alamat: document.getElementById('siswa-alamat') ? document.getElementById('siswa-alamat').value : '',
+            rt: document.getElementById('siswa-rt') ? document.getElementById('siswa-rt').value : '',
+            rw: document.getElementById('siswa-rw') ? document.getElementById('siswa-rw').value : ''
+        };
+
         if (btnSimpan) {
-            btnSimpan.disabled = false;
-            btnSimpan.textContent = "Simpan Data";
+            btnSimpan.disabled = true;
+            btnSimpan.textContent = "Menyimpan...";
         }
-    }
-}
 
-// 4. PERBAIKAN HAPUS SISWA
-async function handleDeleteSiswa(index) {
-    const item = activeRenderedData[index];
-    if (!item) {
-        alert("Data tidak ditemukan.");
-        return;
-    }
-
-    const rowNumber = item._rowNum || item.rowNum || (index + 2);
-    const namaSiswa = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']) || 'siswa ini';
-    
-    if (!confirm(`Apakah Anda yakin ingin menghapus data "${namaSiswa}" pada baris ke-${rowNumber}?`)) return;
-
-    const rawSheet = item._sheetName || getPropValue(item, ['sumber sheet', 'sumber_sheet', 'unit']);
-    let sheetTarget = "Master Data Siswa PAUD 1";
-    if (String(rawSheet).includes("2")) sheetTarget = "Master Data Siswa PAUD 2";
-
-    const payload = {
-        action: 'deleteSiswa',
-        rowNum: rowNumber,
-        sumberSheet: sheetTarget
-    };
-
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
-        });
-        
-        const textResult = await res.text();
-        let result;
         try {
-            result = JSON.parse(textResult);
-        } catch (parseErr) {
-            throw new Error("Respon Backend Bukan JSON Valid.");
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            
+            const textResult = await res.text();
+            let result;
+            try {
+                result = JSON.parse(textResult);
+            } catch (parseErr) {
+                throw new Error("Respon Backend Bukan JSON Valid. Respon: " + textResult.substring(0, 100));
+            }
+
+            if (result.status === 'success' || result.result === 'success') {
+                closeSiswaModal();
+                fetchData();
+            } else {
+                alert("Gagal menyimpan: " + (result.message || result.error || "Terjadi kesalahan pada backend"));
+            }
+        } catch (err) {
+            alert("Error Transaksi: " + err.message);
+        } finally {
+            if (btnSimpan) {
+                btnSimpan.disabled = false;
+                btnSimpan.textContent = "Simpan Data";
+            }
+        }
+    }
+
+    // 4. PERBAIKAN HAPUS SISWA
+    async function handleDeleteSiswa(index) {
+        const item = activeRenderedData[index];
+        if (!item) {
+            alert("Data tidak ditemukan.");
+            return;
         }
 
-        if (result.status === 'success' || result.result === 'success') {
-            fetchData();
-        } else {
-            alert("Gagal menghapus: " + (result.message || result.error || "Terjadi kesalahan backend"));
+        const rowNumber = item._rowNum || item.rowNum || (index + 2);
+        const namaSiswa = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']) || 'siswa ini';
+        
+        if (!confirm(`Apakah Anda yakin ingin menghapus data "${namaSiswa}" pada baris ke-${rowNumber}?`)) return;
+
+        const rawSheet = item._sheetName || getPropValue(item, ['sumber sheet', 'sumber_sheet', 'unit']);
+        let sheetTarget = "Master Data Siswa PAUD 1";
+        if (String(rawSheet).includes("2")) sheetTarget = "Master Data Siswa PAUD 2";
+
+        const payload = {
+            action: 'deleteSiswa',
+            rowNum: rowNumber,
+            sumberSheet: sheetTarget
+        };
+
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            
+            const textResult = await res.text();
+            let result;
+            try {
+                result = JSON.parse(textResult);
+            } catch (parseErr) {
+                throw new Error("Respon Backend Bukan JSON Valid.");
+            }
+
+            if (result.status === 'success' || result.result === 'success') {
+                fetchData();
+            } else {
+                alert("Gagal menghapus: " + (result.message || result.error || "Terjadi kesalahan backend"));
+            }
+        } catch (err) {
+            alert("Error Transaksi: " + err.message);
         }
-    } catch (err) {
-        alert("Error Transaksi: " + err.message);
     }
-}
 </script>
 </body>
 </html>
