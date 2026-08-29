@@ -816,7 +816,7 @@
 
             if (item) {
                 // Gunakan _rowNum, atau fallback ke kalkulasi index + 2 (header = row 1)
-                const rowNumber = item._rowNum || item.rowNum || (index + 2);
+                const rowNumber = index + 2;
                 if (elRowIndex) elRowIndex.value = rowNumber;
                 
                 // Pemetaan nama sheet presisi
