@@ -801,7 +801,7 @@
         }
     }
 
-    // --- SFISIEN & PRESI MODAL HANDLER SISWA ---
+    // --- PEMBARUAN HANDLER MODAL SISWA ---
     function openSiswaModal(mode, index = null) {
         const modal = document.getElementById('modal-siswa');
         const title = document.getElementById('modal-siswa-title');
@@ -809,57 +809,49 @@
 
         if (!modal) {
             console.error("Elemen #modal-siswa tidak ditemukan di DOM!");
-            alert("Error: Modal HTML tidak ditemukan.");
             return;
         }
 
         modal.classList.remove('hidden');
 
-        // Deteksi seluruh elemen form menggunakan Universal Field Finder
-        const elNama = getFormField(modal, ['nama lengkap', 'nama siswa', 'nama'], ['siswa-nama', 'nama', 'nama_lengkap', 'nama-lengkap', 'siswa_nama']);
-        const elUnit = getFormField(modal, ['unit sekolah', 'unit'], ['siswa-unit', 'unit', 'unit_sekolah', 'unit-sekolah']);
-        const elKelas = getFormField(modal, ['kelas', 'kelompok'], ['siswa-kelas', 'kelas', 'kelompok', 'kelas_kelompok']);
-        const elJk = getFormField(modal, ['jenis kelamin', 'jk'], ['siswa-jk', 'jk', 'jenis_kelamin', 'jenis-kelamin']);
-        const elNisn = getFormField(modal, ['nisn', 'nis'], ['siswa-nisn', 'nisn', 'nis']);
+        // Referensi elemen input berdasarkan ID HTML
+        const elRowIndex = document.getElementById('siswa-row-index');
+        const elNama = document.getElementById('siswa-nama');
+        const elUnit = document.getElementById('siswa-unit');
+        const elKelas = document.getElementById('siswa-kelas');
+        const elJk = document.getElementById('siswa-jk');
+        const elNisn = document.getElementById('siswa-nisn');
+        const elTempatLahir = document.getElementById('siswa-tempat-lahir');
+        const elTglLahir = document.getElementById('siswa-tgl-lahir');
+        const elNik = document.getElementById('siswa-nik');
+        const elAgama = document.getElementById('siswa-agama');
+        const elAlamat = document.getElementById('siswa-alamat');
+        const elRt = document.getElementById('siswa-rt');
+        const elRw = document.getElementById('siswa-rw');
 
-        if (mode === 'add') {
+        if (mode === 'add' || index === null) {
             if (title) title.textContent = 'Tambah Peserta Didik';
-            if (form) {
-                form.reset();
-                delete form.dataset.rowNum;
-                delete form.dataset.sumberSheet;
-            }
-            if (elNama) elNama.value = '';
-            if (elNisn) elNisn.value = '';
+            if (form) form.reset();
+            if (elRowIndex) elRowIndex.value = '';
+            if (elAgama) elAgama.value = 'Islam';
         } else if (mode === 'edit' && index !== null) {
             if (title) title.textContent = 'Edit Peserta Didik';
             const item = activeRenderedData[index];
-            
-            console.log("=== DEBUG EDIT SISWA ===");
-            console.log("Row Index:", index);
-            console.log("Row Item Data:", item);
 
             if (item) {
-                const namaVal = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']);
-                const unitVal = getPropValue(item, ['unit', 'unit_sekolah']) || (item._sheetName && item._sheetName.includes('2') ? 'PAUD 2' : 'PAUD 1');
-                const kelasVal = getPropValue(item, ['kelas', 'kelompok']);
-                const jkVal = getPropValue(item, ['jk', 'jenis kelamin', 'jeniskelamin']);
-                const nisnVal = getPropValue(item, ['nisn', 'nis']);
-
-                console.log("Extracted Values -> Nama:", namaVal, "| Unit:", unitVal, "| Kelas:", kelasVal, "| JK:", jkVal, "| NISN:", nisnVal);
-
-                if (elNama) elNama.value = namaVal;
-                setSelectValue(elUnit, unitVal);
-                setSelectValue(elKelas, kelasVal);
-                setSelectValue(elJk, jkVal);
-                if (elNisn) elNisn.value = nisnVal;
-
-                if (form) {
-                    form.dataset.rowNum = item._rowNum || '';
-                    form.dataset.sumberSheet = item._sheetName || 'Master Data Siswa PAUD 1';
-                }
-            } else {
-                console.warn("Item data tidak ditemukan pada index:", index);
+                if (elRowIndex) elRowIndex.value = item._rowNum || '';
+                if (elUnit) setSelectValue(elUnit, item._sheetName || getPropValue(item, ['unit', 'unit_sekolah']) || 'PAUD 1');
+                if (elNama) elNama.value = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']);
+                if (elKelas) elKelas.value = getPropValue(item, ['kelas', 'kelompok']);
+                if (elJk) setSelectValue(elJk, getPropValue(item, ['jk', 'jenis kelamin', 'jeniskelamin']) || 'L');
+                if (elNisn) elNisn.value = getPropValue(item, ['nisn', 'nis']);
+                if (elTempatLahir) elTempatLahir.value = getPropValue(item, ['tempat lahir', 'tempat_lahir']);
+                if (elTglLahir) elTglLahir.value = getPropValue(item, ['tanggal lahir', 'tgl lahir', 'tanggal_lahir']);
+                if (elNik) elNik.value = getPropValue(item, ['nik']);
+                if (elAgama) elAgama.value = getPropValue(item, ['agama']) || 'Islam';
+                if (elAlamat) elAlamat.value = getPropValue(item, ['alamat']);
+                if (elRt) elRt.value = getPropValue(item, ['rt']);
+                if (elRw) elRw.value = getPropValue(item, ['rw']);
             }
         }
     }
@@ -873,28 +865,26 @@
         if (e && e.preventDefault) e.preventDefault();
         
         const modal = document.getElementById('modal-siswa');
-        const form = document.getElementById('form-siswa');
-        const btnSimpan = modal ? modal.querySelector('button[type="submit"], .btn-simpan, #btn-simpan-siswa') : null;
-        
-        const rowNum = form ? form.dataset.rowNum : '';
-        const isEdit = Boolean(rowNum);
+        const btnSimpan = document.getElementById('btn-simpan-siswa');
+        const rowIndex = document.getElementById('siswa-row-index') ? document.getElementById('siswa-row-index').value : '';
+        const isEdit = Boolean(rowIndex);
 
-        const elNama = getFormField(modal, ['nama lengkap', 'nama siswa', 'nama'], ['siswa-nama', 'nama', 'nama_lengkap', 'nama-lengkap']);
-        const elUnit = getFormField(modal, ['unit sekolah', 'unit'], ['siswa-unit', 'unit', 'unit_sekolah']);
-        const elKelas = getFormField(modal, ['kelas', 'kelompok'], ['siswa-kelas', 'kelas', 'kelompok']);
-        const elJk = getFormField(modal, ['jenis kelamin', 'jk'], ['siswa-jk', 'jk', 'jenis_kelamin']);
-        const elNisn = getFormField(modal, ['nisn', 'nis'], ['siswa-nisn', 'nisn', 'nis']);
-
-        const params = new URLSearchParams({
+        const payload = {
             action: isEdit ? 'updateSiswa' : 'createSiswa',
-            rowNum: rowNum || '',
-            sumberSheet: (form && form.dataset.sumberSheet) ? form.dataset.sumberSheet : 'Master Data Siswa PAUD 1',
-            nama: elNama ? elNama.value : '',
-            unit: elUnit ? elUnit.value : 'PAUD 1',
-            kelas: elKelas ? elKelas.value : '',
-            jk: elJk ? elJk.value : 'L',
-            nisn: elNisn ? elNisn.value : ''
-        });
+            rowNum: rowIndex,
+            sumberSheet: document.getElementById('siswa-unit') ? document.getElementById('siswa-unit').value : 'PAUD 1',
+            nama: document.getElementById('siswa-nama') ? document.getElementById('siswa-nama').value : '',
+            kelas: document.getElementById('siswa-kelas') ? document.getElementById('siswa-kelas').value : '',
+            jk: document.getElementById('siswa-jk') ? document.getElementById('siswa-jk').value : 'L',
+            nisn: document.getElementById('siswa-nisn') ? document.getElementById('siswa-nisn').value : '',
+            tempat_lahir: document.getElementById('siswa-tempat-lahir') ? document.getElementById('siswa-tempat-lahir').value : '',
+            tgl_lahir: document.getElementById('siswa-tgl-lahir') ? document.getElementById('siswa-tgl-lahir').value : '',
+            nik: document.getElementById('siswa-nik') ? document.getElementById('siswa-nik').value : '',
+            agama: document.getElementById('siswa-agama') ? document.getElementById('siswa-agama').value : 'Islam',
+            alamat: document.getElementById('siswa-alamat') ? document.getElementById('siswa-alamat').value : '',
+            rt: document.getElementById('siswa-rt') ? document.getElementById('siswa-rt').value : '',
+            rw: document.getElementById('siswa-rw') ? document.getElementById('siswa-rw').value : ''
+        };
 
         if (btnSimpan) {
             btnSimpan.disabled = true;
@@ -902,7 +892,10 @@
         }
 
         try {
-            const res = await fetch(`${API_URL}?${params.toString()}`);
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
             const result = await res.json();
 
             if (result.status === 'success') {
@@ -922,7 +915,6 @@
     }
 
     async function handleDeleteSiswa(index) {
-        if (!confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) return;
         const item = activeRenderedData[index];
 
         if (!item || !item._rowNum) {
@@ -930,14 +922,20 @@
             return;
         }
 
-        const params = new URLSearchParams({
+        const namaSiswa = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']) || 'siswa ini';
+        if (!confirm(`Apakah Anda yakin ingin menghapus data "${namaSiswa}"?`)) return;
+
+        const payload = {
             action: 'deleteSiswa',
             rowNum: item._rowNum,
             sumberSheet: item._sheetName || 'Master Data Siswa PAUD 1'
-        });
+        };
 
         try {
-            const res = await fetch(`${API_URL}?${params.toString()}`);
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
             const result = await res.json();
 
             if (result.status === 'success') {
