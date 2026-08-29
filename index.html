@@ -428,23 +428,19 @@
     }
 
     // 1. UNIVERSAL ELEMENT FINDER
-    // Mencari elemen input/select di dalam modal berdasarkan ID, Name, atau Teks Label
     function getFormField(modal, labelKeywords, possibleIds) {
         if (!modal) modal = document;
         
-        // A. Cari berdasarkan ID langsung
         for (let id of possibleIds) {
             let el = modal.querySelector(`#${id}`);
             if (el) return el;
         }
 
-        // B. Cari berdasarkan atribut name / id partial
         for (let id of possibleIds) {
             let el = modal.querySelector(`[name="${id}"], [id*="${id}"]`);
             if (el) return el;
         }
 
-        // C. Cari berdasarkan Teks Label di sebelahnya/pembungkusnya
         const labels = Array.from(modal.querySelectorAll('label'));
         for (let label of labels) {
             const text = label.textContent.toLowerCase();
@@ -463,7 +459,6 @@
     }
 
     // 2. UNIVERSAL PROPERTY EXTRACTOR
-    // Mencari nilai properti dari objek data tanpa peduli kapitalisasi huruf
     function getPropValue(obj, candidates) {
         if (!obj || typeof obj !== 'object') return '';
         const keys = Object.keys(obj);
@@ -483,7 +478,6 @@
     }
 
     // 3. SMART SELECT DROPDOWN SETTER
-    // Mencocokkan nilai 'L' / 'P' / nama kelas ke opsi dropdown <select>
     function setSelectValue(selectEl, val) {
         if (!selectEl) return;
         if (!val) {
@@ -493,7 +487,6 @@
         const cleanVal = String(val).toLowerCase().trim();
         let matched = false;
 
-        // Pencocokan langsung nilai value
         for (let i = 0; i < selectEl.options.length; i++) {
             const opt = selectEl.options[i];
             if (opt.value.toLowerCase().trim() === cleanVal) {
@@ -503,7 +496,6 @@
             }
         }
 
-        // Pencocokan teks tampilan / kata kunci (misal 'L' ke 'Laki-laki (L)')
         if (!matched) {
             for (let i = 0; i < selectEl.options.length; i++) {
                 const opt = selectEl.options[i];
@@ -525,9 +517,21 @@
         }
     }
 
-    // Initialize App
+    // Initialize App & Event Listeners
     document.addEventListener('DOMContentLoaded', () => {
         fetchData();
+
+        // Bind Form Submit Event
+        const formSiswa = document.getElementById('form-siswa');
+        if (formSiswa) {
+            formSiswa.addEventListener('submit', handleSaveSiswa);
+        }
+
+        // Bind Search Input Event
+        const searchInput = document.getElementById('table-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => filterGenericTable(e.target.value));
+        }
     });
 
     // API Fetching & State Handling
@@ -698,13 +702,9 @@
         }
     }
 
-    // 1. PERBAIKAN RENDER TABLE (Menghilangkan Kolom NO Ganda)
+    // RENDER GENERIC TABLE
     function renderGenericTable(dataKey) {
-        const thead = document.getElementById('generic-table-head');
-        const tbody = document.getElementById('generic-table-body');
-        const recordCount = document.getElementById('record-count');
         const searchInput = document.getElementById('table-search-input');
-        
         if (searchInput) searchInput.value = '';
         
         let rawData = globalState.result[dataKey];
@@ -726,11 +726,38 @@
             });
         }
 
-        activeRenderedData = rawData;
-        const isSiswaPage = (dataKey === 'dataSiswa');
-        if (recordCount) recordCount.textContent = rawData.length;
+        // Tandai indeks asli untuk menjamin keamanan aksi edit/hapus
+        activeRenderedData = rawData.map((item, idx) => ({ ...item, _originalIndex: idx }));
+        populateTableHTML(activeRenderedData);
+    }
 
-        if (rawData.length === 0) {
+    // FILTER TABLE DATA (Pencarian Real-Time)
+    function filterGenericTable(query) {
+        if (!query) {
+            populateTableHTML(activeRenderedData);
+            return;
+        }
+
+        const q = query.toLowerCase().trim();
+        const filtered = activeRenderedData.filter(row => {
+            return Object.values(row).some(val => 
+                val !== null && val !== undefined && String(val).toLowerCase().includes(q)
+            );
+        });
+
+        populateTableHTML(filtered);
+    }
+
+    // BUILD TABLE HTML
+    function populateTableHTML(dataList) {
+        const thead = document.getElementById('generic-table-head');
+        const tbody = document.getElementById('generic-table-body');
+        const recordCount = document.getElementById('record-count');
+        const isSiswaPage = (currentActiveDataKey === 'dataSiswa');
+
+        if (recordCount) recordCount.textContent = dataList.length;
+
+        if (dataList.length === 0) {
             if (thead) thead.innerHTML = '';
             if (tbody) tbody.innerHTML = `
                 <tr>
@@ -742,8 +769,7 @@
             return;
         }
 
-        // DISARING: Keluarkan kolom bernama "no", "nomor", atau "#" agar tidak ganda
-        const keys = Object.keys(rawData[0]).filter(k => {
+        const keys = Object.keys(dataList[0]).filter(k => {
             const cleanKey = k.toLowerCase().trim();
             return !k.startsWith('_') && cleanKey !== 'no' && cleanKey !== 'nomor' && cleanKey !== '#';
         });
@@ -759,31 +785,34 @@
         }
 
         if (tbody) {
-            tbody.innerHTML = rawData.map((row, index) => `
-                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                    <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
-                    ${keys.map(k => {
-                        let cellVal = row[k];
-                        if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
-                        return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
-                    }).join('')}
-                    ${isSiswaPage ? `
-                        <td class="p-3 text-center whitespace-nowrap">
-                            <button onclick="openSiswaModal('edit', ${index})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
-                                <i class="fa-solid fa-pen"></i> Edit
-                            </button>
-                            <button onclick="handleDeleteSiswa(${index})" class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
-                                <i class="fa-solid fa-trash"></i> Hapus
-                            </button>
-                        </td>
-                    ` : ''}
-                </tr>
-            `).join('');
+            tbody.innerHTML = dataList.map((row, index) => {
+                const origIndex = row._originalIndex !== undefined ? row._originalIndex : index;
+                return `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                        <td class="p-3 text-center font-semibold text-slate-400">${index + 1}</td>
+                        ${keys.map(k => {
+                            let cellVal = row[k];
+                            if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
+                            return `<td class="p-3 whitespace-nowrap">${cellVal !== undefined && cellVal !== null ? cellVal : '-'}</td>`;
+                        }).join('')}
+                        ${isSiswaPage ? `
+                            <td class="p-3 text-center whitespace-nowrap">
+                                <button onclick="openSiswaModal('edit', ${origIndex})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
+                                    <i class="fa-solid fa-pen"></i> Edit
+                                </button>
+                                <button onclick="handleDeleteSiswa(${origIndex})" class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded text-xs font-bold hover:bg-rose-200">
+                                    <i class="fa-solid fa-trash"></i> Hapus
+                                </button>
+                            </td>
+                        ` : ''}
+                    </tr>
+                `;
+            }).join('');
         }
     }
 
-    // 2. PERBAIKAN PEMBACAAN DATA ROW (Fallback jika _rowNum belum terdefinisi)
-    function openSiswaModal(mode, index = null) {
+    // PEMBACAAN & POPULASI MODAL SISWA
+    function openSiswaModal(mode, originalIndex = null) {
         const modal = document.getElementById('modal-siswa');
         const title = document.getElementById('modal-siswa-title');
         const form = document.getElementById('form-siswa');
@@ -805,21 +834,19 @@
         const elRt = document.getElementById('siswa-rt');
         const elRw = document.getElementById('siswa-rw');
 
-        if (mode === 'add' || index === null) {
+        if (mode === 'add' || originalIndex === null) {
             if (title) title.textContent = 'Tambah Peserta Didik';
             if (form) form.reset();
             if (elRowIndex) elRowIndex.value = '';
             if (elAgama) elAgama.value = 'Islam';
-        } else if (mode === 'edit' && index !== null) {
+        } else if (mode === 'edit' && originalIndex !== null) {
             if (title) title.textContent = 'Edit Peserta Didik';
-            const item = activeRenderedData[index];
+            const item = activeRenderedData[originalIndex];
 
             if (item) {
-                // Gunakan _rowNum, atau fallback ke kalkulasi index + 2 (header = row 1)
-                const rowNumber = index + 2;
+                const rowNumber = item._rowNum || item.rowNum || (originalIndex + 2);
                 if (elRowIndex) elRowIndex.value = rowNumber;
                 
-                // Pemetaan nama sheet presisi
                 const rawSheet = item._sheetName || getPropValue(item, ['sumber sheet', 'sumber_sheet', 'unit']);
                 let formattedSheet = "Master Data Siswa PAUD 1";
                 if (String(rawSheet).includes("2")) formattedSheet = "Master Data Siswa PAUD 2";
@@ -840,7 +867,7 @@
         }
     }
 
-    // 3. PERBAIKAN PENGIRIMAN DATA SIMPAN (Payload Matching & Error Handling)
+    // SIMPAN / UPDATE DATA SISWA
     async function handleSaveSiswa(e) {
         if (e && e.preventDefault) e.preventDefault();
         
@@ -849,7 +876,6 @@
         const isEdit = Boolean(rowIndex);
         const selectedUnitVal = document.getElementById('siswa-unit') ? document.getElementById('siswa-unit').value : '';
 
-        // Penyesuaian Nama Sheet Target
         let sheetTarget = selectedUnitVal;
         if (selectedUnitVal === "PAUD 1" || selectedUnitVal.includes("1")) {
             sheetTarget = "Master Data Siswa PAUD 1";
@@ -910,15 +936,15 @@
         }
     }
 
-    // 4. PERBAIKAN HAPUS SISWA
-    async function handleDeleteSiswa(index) {
-        const item = activeRenderedData[index];
+    // HAPUS SISWA
+    async function handleDeleteSiswa(originalIndex) {
+        const item = activeRenderedData[originalIndex];
         if (!item) {
             alert("Data tidak ditemukan.");
             return;
         }
 
-        const rowNumber = item._rowNum || item.rowNum || (index + 2);
+        const rowNumber = item._rowNum || item.rowNum || (originalIndex + 2);
         const namaSiswa = getPropValue(item, ['nama siswa', 'nama', 'nama_lengkap']) || 'siswa ini';
         
         if (!confirm(`Apakah Anda yakin ingin menghapus data "${namaSiswa}" pada baris ke-${rowNumber}?`)) return;
