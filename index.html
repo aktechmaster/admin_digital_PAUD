@@ -748,7 +748,7 @@
         populateTableHTML(filtered);
     }
 
-    // BUILD TABLE HTML (Dengan Penyesuaian Style, Conditional Formatting, & Kolom Keterangan)
+    // BUILD TABLE HTML (Dengan Persentase Keterangan & Style Badge)
     function populateTableHTML(dataList) {
         const thead = document.getElementById('generic-table-head');
         const tbody = document.getElementById('generic-table-body');
@@ -839,15 +839,21 @@
 
                 let keteranganHTML = '';
                 if (hasTargetRealisasi) {
-                    if (realisasiVal === targetVal) {
-                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">Pas</span></td>`;
-                    } else if (realisasiVal < targetVal) {
-                        const selisih = targetVal - realisasiVal;
-                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200">Belum Mengisi Jurnal (${selisih})</span></td>`;
-                    } else {
-                        const selisih = realisasiVal - targetVal;
-                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200">Kelebihan ${selisih} Jurnal</span></td>`;
+                    let percent = 0;
+                    if (targetVal > 0) {
+                        percent = Math.round((realisasiVal / targetVal) * 100);
+                    } else if (realisasiVal > 0) {
+                        percent = 100;
                     }
+
+                    let badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
+                    if (percent >= 100) {
+                        badgeStyle = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+                    } else if (percent > 0) {
+                        badgeStyle = 'bg-amber-50 text-amber-600 border border-amber-200';
+                    }
+
+                    keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold ${badgeStyle}">${percent}%</span></td>`;
                 }
 
                 return `
