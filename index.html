@@ -748,7 +748,7 @@
         populateTableHTML(filtered);
     }
 
-    // BUILD TABLE HTML (Dengan Persentase Keterangan & Style Badge)
+    // BUILD TABLE HTML (Membedakan Format Keterangan Harian & Bulanan)
     function populateTableHTML(dataList) {
         const thead = document.getElementById('generic-table-head');
         const tbody = document.getElementById('generic-table-body');
@@ -839,21 +839,47 @@
 
                 let keteranganHTML = '';
                 if (hasTargetRealisasi) {
-                    let percent = 0;
-                    if (targetVal > 0) {
-                        percent = Math.round((realisasiVal / targetVal) * 100);
-                    } else if (realisasiVal > 0) {
-                        percent = 100;
-                    }
+                    const isHarianPage = currentActiveDataKey && currentActiveDataKey.toLowerCase().includes('harian');
 
-                    let badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
-                    if (percent >= 100) {
-                        badgeStyle = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
-                    } else if (percent > 0) {
-                        badgeStyle = 'bg-amber-50 text-amber-600 border border-amber-200';
-                    }
+                    if (isHarianPage) {
+                        // LOGIKA TEKS UNTUK JURNAL HARIAN
+                        const selisih = realisasiVal - targetVal;
+                        let labelText = '';
+                        let badgeStyle = '';
 
-                    keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold ${badgeStyle}">${percent}%</span></td>`;
+                        if (realisasiVal === 0) {
+                            labelText = 'Belum Mengisi';
+                            badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
+                        } else if (selisih === 0) {
+                            labelText = 'Pas';
+                            badgeStyle = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+                        } else if (selisih < 0) {
+                            labelText = `Kurang ${Math.abs(selisih)} Jurnal`;
+                            badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
+                        } else {
+                            labelText = `Kelebihan ${selisih} Jurnal`;
+                            badgeStyle = 'bg-indigo-50 text-indigo-600 border border-indigo-200';
+                        }
+
+                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold ${badgeStyle}">${labelText}</span></td>`;
+                    } else {
+                        // LOGIKA PERSENTASE UNTUK JURNAL BULANAN & UMUM
+                        let percent = 0;
+                        if (targetVal > 0) {
+                            percent = Math.round((realisasiVal / targetVal) * 100);
+                        } else if (realisasiVal > 0) {
+                            percent = 100;
+                        }
+
+                        let badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
+                        if (percent >= 100) {
+                            badgeStyle = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+                        } else if (percent > 0) {
+                            badgeStyle = 'bg-amber-50 text-amber-600 border border-amber-200';
+                        }
+
+                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold ${badgeStyle}">${percent}%</span></td>`;
+                    }
                 }
 
                 return `
