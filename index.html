@@ -702,7 +702,7 @@
         }
     }
 
-    // RENDER GENERIC TABLE
+    // RENDER GENERIC TABLE (Dengan Filter Otomatis Nama Bulan & Format Tanggal Anomali)
     function renderGenericTable(dataKey) {
         const searchInput = document.getElementById('table-search-input');
         if (searchInput) searchInput.value = '';
@@ -725,6 +725,28 @@
                 return typeof val === 'object' ? { "Nama/Key": key, ...val } : { "Nama/Key": key, "Nilai": val };
             });
         }
+
+        // FILTER OTOMATIS: Membuang baris yang berisi Nama Bulan atau Format Tanggal/GMT
+        const monthNames = [
+            'januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
+            'january', 'february', 'march', 'may', 'june', 'july', 'august', 'october', 'november', 'december'
+        ];
+
+        rawData = rawData.filter(item => {
+            const firstVal = String(item['Nama/Key'] || item['nama'] || item['nama_guru'] || item['namaGuru'] || Object.values(item)[0] || '').trim();
+            const lowerVal = firstVal.toLowerCase();
+
+            // 1. Abaikan jika nilai nama adalah nama bulan
+            if (monthNames.includes(lowerVal)) return false;
+
+            // 2. Abaikan jika berisi string tanggal GMT, UTC, atau Format Jam/Waktu
+            if (lowerVal.includes('gmt') || lowerVal.includes('waktu indochina') || lowerVal.includes('utc') || lowerVal.includes('00:00:00')) return false;
+            
+            // 3. Abaikan jika pola teks berupa format tanggal (contoh: 01/09/2026 atau 01-09-2026)
+            if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(firstVal)) return false;
+
+            return true;
+        });
 
         // Tandai indeks asli untuk menjamin keamanan aksi edit/hapus
         activeRenderedData = rawData.map((item, idx) => ({ ...item, _originalIndex: idx }));
