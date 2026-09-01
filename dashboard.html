@@ -6,14 +6,13 @@
     <title>Dashboard Admin - PAUD IT Al-Kautsar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- === SCRIPT PENGAMAN LOGIN (TARUH DI SINI) === -->
+    
+    <!-- PROTEKSI HAK AKSES LOG IN -->
     <script>
         if (localStorage.getItem('isLoggedIn') !== 'true') {
             window.location.href = 'index.html';
         }
     </script>
-    <!-- ============================================= -->
 
     <style>
         .sidebar-item-active {
@@ -145,6 +144,12 @@
                         <span class="text-xs font-bold text-slate-700">Administrator</span>
                         <span class="text-[10px] text-slate-400">admin@alkautsar.sch.id</span>
                     </div>
+
+                    <!-- TOMBOL LOGOUT -->
+                    <button onclick="logout()" title="Keluar / Logout" class="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm ml-2">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="hidden sm:inline">Logout</span>
+                    </button>
                 </div>
             </div>
         </header>
@@ -319,98 +324,98 @@
                 </div>
             </section>
             
-            </main>
+        </main>
     </div>
 
     <!-- Modal Form Tambah / Edit Siswa -->
-<div id="modal-siswa" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl p-6 border border-slate-100 max-h-[90vh] flex flex-col">
-        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4 flex-shrink-0">
-            <h3 id="modal-siswa-title" class="text-lg font-bold text-slate-800">Tambah Peserta Didik</h3>
-            <button type="button" onclick="closeSiswaModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    <div id="modal-siswa" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl p-6 border border-slate-100 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4 flex-shrink-0">
+                <h3 id="modal-siswa-title" class="text-lg font-bold text-slate-800">Tambah Peserta Didik</h3>
+                <button type="button" onclick="closeSiswaModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+            
+            <form id="form-siswa" onsubmit="handleSaveSiswa(event)" class="overflow-y-auto pr-1 space-y-4 flex-1">
+                <input type="hidden" id="siswa-row-index" value="">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Lengkap</label>
+                    <input type="text" id="siswa-nama" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unit Sekolah</label>
+                        <select id="siswa-unit" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="PAUD 1">PAUD 1</option>
+                            <option value="PAUD 2">PAUD 2</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Kelas / Kelompok</label>
+                        <input type="text" id="siswa-kelas" placeholder="Misal: A1 / B2" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Jenis Kelamin</label>
+                        <select id="siswa-jk" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="L">Laki-laki (L)</option>
+                            <option value="P">Perempuan (P)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NISN / NIS</label>
+                        <input type="text" id="siswa-nisn" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tempat Lahir</label>
+                        <input type="text" id="siswa-tempat-lahir" placeholder="Misal: Mukomuko" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tanggal Lahir</label>
+                        <input type="text" id="siswa-tgl-lahir" placeholder="Misal: 21 Februari 2022" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NIK</label>
+                        <input type="text" id="siswa-nik" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Agama</label>
+                        <input type="text" id="siswa-agama" value="Islam" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Alamat Lengkap</label>
+                    <input type="text" id="siswa-alamat" placeholder="Nama Jalan / Desa" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">RT</label>
+                        <input type="text" id="siswa-rt" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">RW</label>
+                        <input type="text" id="siswa-rw" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100 flex-shrink-0">
+                    <button type="button" onclick="closeSiswaModal()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200">Batal</button>
+                    <button type="submit" id="btn-simpan-siswa" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Simpan Data</button>
+                </div>
+            </form>
         </div>
-        
-        <form id="form-siswa" onsubmit="handleSaveSiswa(event)" class="overflow-y-auto pr-1 space-y-4 flex-1">
-            <input type="hidden" id="siswa-row-index" value="">
-            
-            <div>
-                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Lengkap</label>
-                <input type="text" id="siswa-nama" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-            </div>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unit Sekolah</label>
-                    <select id="siswa-unit" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                        <option value="PAUD 1">PAUD 1</option>
-                        <option value="PAUD 2">PAUD 2</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Kelas / Kelompok</label>
-                    <input type="text" id="siswa-kelas" placeholder="Misal: A1 / B2" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Jenis Kelamin</label>
-                    <select id="siswa-jk" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                        <option value="L">Laki-laki (L)</option>
-                        <option value="P">Perempuan (P)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NISN / NIS</label>
-                    <input type="text" id="siswa-nisn" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tempat Lahir</label>
-                    <input type="text" id="siswa-tempat-lahir" placeholder="Misal: Mukomuko" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tanggal Lahir</label>
-                    <input type="text" id="siswa-tgl-lahir" placeholder="Misal: 21 Februari 2022" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NIK</label>
-                    <input type="text" id="siswa-nik" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Agama</label>
-                    <input type="text" id="siswa-agama" value="Islam" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Alamat Lengkap</label>
-                <input type="text" id="siswa-alamat" placeholder="Nama Jalan / Desa" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">RT</label>
-                    <input type="text" id="siswa-rt" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">RW</label>
-                    <input type="text" id="siswa-rw" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100 flex-shrink-0">
-                <button type="button" onclick="closeSiswaModal()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200">Batal</button>
-                <button type="submit" id="btn-simpan-siswa" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Simpan Data</button>
-            </div>
-        </form>
     </div>
-</div>
 
    <script>
     // CONFIGURATION: Execution URL Google Apps Script
@@ -1126,6 +1131,12 @@
             alert("Error Transaksi: " + err.message);
         }
     }
+
+       function logout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
 </script>
 </body>
 </html>
