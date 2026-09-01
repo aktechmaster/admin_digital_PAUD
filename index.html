@@ -771,14 +771,17 @@
 
         const keys = Object.keys(dataList[0]).filter(k => {
             const cleanKey = k.toLowerCase().trim();
-            return !k.startsWith('_') && cleanKey !== 'no' && cleanKey !== 'nomor' && cleanKey !== '#';
+            return !k.startsWith('_') && cleanKey !== 'no' && cleanKey !== 'nomor' && cleanKey !== '#' && cleanKey !== 'tampilan';
         });
 
         const hasTargetRealisasi = keys.some(k => k.toLowerCase().includes('target')) && keys.some(k => k.toLowerCase().includes('realisasi'));
 
         function getHeaderTitle(k) {
             const clean = k.toLowerCase().trim();
-            if (clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey') return 'NAMA GURU';
+            if (clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey') {
+                return (currentActiveDataKey === 'rekapKelas') ? 'NAMA KELOMPOK' : 'NAMA GURU';
+            }
+            if (clean === 'jumlahinput') return 'JUMLAH INPUT';
             return k.replace(/_/g, ' ').toUpperCase();
         }
 
