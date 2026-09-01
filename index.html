@@ -847,12 +847,12 @@
                         let labelText = '';
                         let badgeStyle = '';
 
-                        if (realisasiVal === 0) {
-                            labelText = 'Belum Mengisi';
-                            badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
-                        } else if (selisih === 0) {
+                        if (selisih === 0) {
                             labelText = 'Pas';
                             badgeStyle = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+                        } else if (realisasiVal === 0) {
+                            labelText = 'Belum Mengisi';
+                            badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
                         } else if (selisih < 0) {
                             labelText = `Kurang ${Math.abs(selisih)} Jurnal`;
                             badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
@@ -868,6 +868,8 @@
                         if (targetVal > 0) {
                             percent = Math.round((realisasiVal / targetVal) * 100);
                         } else if (realisasiVal > 0) {
+                            percent = 100;
+                        } else if (targetVal === 0 && realisasiVal === 0) {
                             percent = 100;
                         }
 
