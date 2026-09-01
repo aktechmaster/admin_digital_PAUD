@@ -748,7 +748,7 @@
         populateTableHTML(filtered);
     }
 
-    // BUILD TABLE HTML (Dengan Penyesuaian Style Kolom Dinamis)
+    // BUILD TABLE HTML (Dengan Penyesuaian Style, Conditional Formatting, & Kolom Keterangan)
     function populateTableHTML(dataList) {
         const thead = document.getElementById('generic-table-head');
         const tbody = document.getElementById('generic-table-body');
@@ -774,18 +774,22 @@
             return !k.startsWith('_') && cleanKey !== 'no' && cleanKey !== 'nomor' && cleanKey !== '#';
         });
 
-        // Helper internal untuk mengatur rata air dan lebar kolom otomatis
+        const hasTargetRealisasi = keys.some(k => k.toLowerCase().includes('target')) && keys.some(k => k.toLowerCase().includes('realisasi'));
+
+        function getHeaderTitle(k) {
+            const clean = k.toLowerCase().trim();
+            if (clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey') return 'NAMA GURU';
+            return k.replace(/_/g, ' ').toUpperCase();
+        }
+
         function getCellClass(key) {
             const k = key.toLowerCase();
-            // Kolom ringkas & tanggal -> Tengah & Tanpa Wrap
-            if (k.includes('tgl') || k.includes('tanggal') || k.includes('jam') || k.includes('kelas') || k.includes('unit') || k.includes('status') || k.includes('jk') || k.includes('nisn')) {
+            if (k.includes('tgl') || k.includes('tanggal') || k.includes('jam') || k.includes('kelas') || k.includes('unit') || k.includes('status') || k.includes('jk') || k.includes('nisn') || k.includes('target') || k.includes('realisasi')) {
                 return 'p-3 text-center whitespace-nowrap text-xs font-medium text-slate-600';
             }
-            // Kolom narasi panjang (Jurnal/Kegiatan/Catatan/Alamat) -> Wrap teks & Batasi lebar
             if (k.includes('kegiatan') || k.includes('uraian') || k.includes('catatan') || k.includes('jurnal') || k.includes('materi') || k.includes('alamat') || k.includes('deskripsi')) {
                 return 'p-3 text-left whitespace-normal min-w-[220px] max-w-sm text-xs leading-relaxed text-slate-700 break-words';
             }
-            // Kolom standar (Nama, Guru, dll)
             return 'p-3 text-left whitespace-nowrap text-xs text-slate-700 font-medium';
         }
 
@@ -796,8 +800,9 @@
                     ${keys.map(k => {
                         const cellClass = getCellClass(k);
                         const alignClass = cellClass.includes('text-center') ? 'text-center' : 'text-left';
-                        return `<th class="p-3 text-xs font-bold uppercase tracking-wider ${alignClass}">${formatHeaderLabel(k)}</th>`;
+                        return `<th class="p-3 text-xs font-bold uppercase tracking-wider ${alignClass}">${getHeaderTitle(k)}</th>`;
                     }).join('')}
+                    ${hasTargetRealisasi ? `<th class="p-3 text-center text-xs font-bold uppercase tracking-wider">KETERANGAN</th>` : ''}
                     ${isSiswaPage ? `<th class="p-3 text-center w-28 text-xs font-bold uppercase tracking-wider">AKSI</th>` : ''}
                 </tr>
             `;
@@ -806,15 +811,50 @@
         if (tbody) {
             tbody.innerHTML = dataList.map((row, index) => {
                 const origIndex = row._originalIndex !== undefined ? row._originalIndex : index;
+                
+                let targetVal = 0;
+                let realisasiVal = 0;
+
+                const rowCellsHTML = keys.map(k => {
+                    let cellVal = row[k];
+                    if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
+                    
+                    const kLower = k.toLowerCase();
+                    if (kLower.includes('target')) targetVal = Number(cellVal) || 0;
+                    if (kLower.includes('realisasi')) realisasiVal = Number(cellVal) || 0;
+
+                    const cellClass = getCellClass(k);
+
+                    if (kLower.includes('realisasi')) {
+                        const numVal = Number(cellVal) || 0;
+                        if (numVal === 0) {
+                            return `<td class="${cellClass}"><span class="px-2 py-0.5 rounded font-bold bg-rose-100 text-rose-700">0</span></td>`;
+                        } else {
+                            return `<td class="${cellClass}"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-700">${numVal}</span></td>`;
+                        }
+                    }
+
+                    return `<td class="${cellClass}">${cellVal !== undefined && cellVal !== null && cellVal !== '' ? cellVal : '-'}</td>`;
+                }).join('');
+
+                let keteranganHTML = '';
+                if (hasTargetRealisasi) {
+                    if (realisasiVal === targetVal) {
+                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">Pas</span></td>`;
+                    } else if (realisasiVal < targetVal) {
+                        const selisih = targetVal - realisasiVal;
+                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200">Belum Mengisi Jurnal (${selisih})</span></td>`;
+                    } else {
+                        const selisih = realisasiVal - targetVal;
+                        keteranganHTML = `<td class="p-3 text-center whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200">Kelebihan ${selisih} Jurnal</span></td>`;
+                    }
+                }
+
                 return `
-                    <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100 align-top">
+                    <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100 align-middle">
                         <td class="p-3 text-center font-semibold text-slate-400 text-xs">${index + 1}</td>
-                        ${keys.map(k => {
-                            let cellVal = row[k];
-                            if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
-                            const cellClass = getCellClass(k);
-                            return `<td class="${cellClass}">${cellVal !== undefined && cellVal !== null && cellVal !== '' ? cellVal : '-'}</td>`;
-                        }).join('')}
+                        ${rowCellsHTML}
+                        ${keteranganHTML}
                         ${isSiswaPage ? `
                             <td class="p-3 text-center whitespace-nowrap align-middle">
                                 <button onclick="openSiswaModal('edit', ${origIndex})" class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 mr-1">
