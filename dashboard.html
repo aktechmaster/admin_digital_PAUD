@@ -830,10 +830,20 @@ function renderGenericTable(dataKey) {
             return;
         }
 
-        const keys = Object.keys(dataList[0]).filter(k => {
+        let keys = Object.keys(dataList[0]).filter(k => {
             const cleanKey = k.toLowerCase().trim();
             return !k.startsWith('_') && cleanKey !== 'no' && cleanKey !== 'nomor' && cleanKey !== '#' && cleanKey !== 'tampilan';
         });
+
+        // 1. Pindahkan kolom NAMA GURU / NAMA/KEY ke posisi paling depan
+        const nameKeyIndex = keys.findIndex(k => {
+            const clean = k.toLowerCase().trim();
+            return clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey' || clean.includes('nama');
+        });
+        if (nameKeyIndex > -1) {
+            const nameKey = keys.splice(nameKeyIndex, 1)[0];
+            keys.unshift(nameKey);
+        }
 
         const hasTargetRealisasi = keys.some(k => k.toLowerCase().includes('target')) && keys.some(k => k.toLowerCase().includes('realisasi'));
 
@@ -843,30 +853,33 @@ function renderGenericTable(dataKey) {
                 return String(sampleVal.bulan).toUpperCase();
             }
             const clean = k.toLowerCase().trim();
-            if (clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey') {
+            if (clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey' || clean.includes('nama')) {
                 return (currentActiveDataKey === 'rekapKelas') ? 'NAMA KELOMPOK' : 'NAMA GURU';
             }
             if (clean === 'jumlahinput') return 'JUMLAH INPUT';
             return k.replace(/_/g, ' ').toUpperCase();
         }
 
-        function getCellClass(key) {
+        function getCellClass(key, colIndex) {
             const k = key.toLowerCase();
+            // 3. Warna kolom selang-seling (Zebra Column)
+            const bgZebra = (colIndex % 2 === 0) ? 'bg-slate-50/60' : 'bg-white';
+
             if (k.includes('tgl') || k.includes('tanggal') || k.includes('jam') || k.includes('kelas') || k.includes('unit') || k.includes('status') || k.includes('jk') || k.includes('nisn') || k.includes('target') || k.includes('realisasi')) {
-                return 'p-3 text-center whitespace-nowrap text-xs font-medium text-slate-600';
+                return `p-3 text-center whitespace-nowrap text-xs font-medium text-slate-600 ${bgZebra}`;
             }
             if (k.includes('kegiatan') || k.includes('uraian') || k.includes('catatan') || k.includes('jurnal') || k.includes('materi') || k.includes('alamat') || k.includes('deskripsi')) {
-                return 'p-3 text-left whitespace-normal min-w-[220px] max-w-sm text-xs leading-relaxed text-slate-700 break-words';
+                return `p-3 text-left whitespace-normal min-w-[220px] max-w-sm text-xs leading-relaxed text-slate-700 break-words ${bgZebra}`;
             }
-            return 'p-3 text-left whitespace-nowrap text-xs text-slate-700 font-medium';
+            return `p-3 text-left whitespace-nowrap text-xs text-slate-700 font-medium ${bgZebra}`;
         }
 
         if (thead) {
             thead.innerHTML = `
                 <tr class="bg-slate-100/80 text-slate-600 border-b border-slate-200">
                     <th class="p-3 w-12 text-center text-xs font-bold uppercase tracking-wider">NO</th>
-                    ${keys.map(k => {
-                        const cellClass = getCellClass(k);
+                    ${keys.map((k, colIndex) => {
+                        const cellClass = getCellClass(k, colIndex);
                         const alignClass = cellClass.includes('text-center') ? 'text-center' : 'text-left';
                         return `<th class="p-3 text-xs font-bold uppercase tracking-wider ${alignClass}">${getHeaderTitle(k)}</th>`;
                     }).join('')}
@@ -883,7 +896,7 @@ function renderGenericTable(dataKey) {
                 let targetVal = 0;
                 let realisasiVal = 0;
 
-                const rowCellsHTML = keys.map(k => {
+                const rowCellsHTML = keys.map((k, colIndex) => {
                     let cellVal = row[k];
                     if (typeof cellVal === 'object' && cellVal !== null) {
                         if (cellVal.bulan) {
@@ -897,7 +910,7 @@ function renderGenericTable(dataKey) {
                     if (kLower.includes('target')) targetVal = Number(cellVal) || 0;
                     if (kLower.includes('realisasi')) realisasiVal = Number(cellVal) || 0;
 
-                    const cellClass = getCellClass(k);
+                    const cellClass = getCellClass(k, colIndex);
 
                     if (kLower.includes('realisasi')) {
                         const numVal = Number(cellVal) || 0;
@@ -906,6 +919,18 @@ function renderGenericTable(dataKey) {
                         } else {
                             return `<td class="${cellClass}"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-700">${numVal}</span></td>`;
                         }
+                    }
+
+                    // 2. Conditional Formatting untuk teks persentase
+                    if (typeof cellVal === 'string' && cellVal.includes('%')) {
+                        const numericPercent = parseFloat(cellVal.replace(',', '.'));
+                        let badgeStyle = 'bg-rose-50 text-rose-600 border border-rose-200';
+                        if (numericPercent >= 100) {
+                            badgeStyle = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                        } else if (numericPercent > 0) {
+                            badgeStyle = 'bg-amber-50 text-amber-700 border border-amber-200';
+                        }
+                        return `<td class="${cellClass}"><span class="px-2 py-1 rounded-md text-xs font-bold ${badgeStyle}">${cellVal}</span></td>`;
                     }
 
                     return `<td class="${cellClass}">${cellVal !== undefined && cellVal !== null && cellVal !== '' ? cellVal : '-'}</td>`;
