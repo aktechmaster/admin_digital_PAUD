@@ -838,6 +838,10 @@ function renderGenericTable(dataKey) {
         const hasTargetRealisasi = keys.some(k => k.toLowerCase().includes('target')) && keys.some(k => k.toLowerCase().includes('realisasi'));
 
         function getHeaderTitle(k) {
+            const sampleVal = dataList[0] ? dataList[0][k] : null;
+            if (sampleVal && typeof sampleVal === 'object' && sampleVal !== null && sampleVal.bulan) {
+                return String(sampleVal.bulan).toUpperCase();
+            }
             const clean = k.toLowerCase().trim();
             if (clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey') {
                 return (currentActiveDataKey === 'rekapKelas') ? 'NAMA KELOMPOK' : 'NAMA GURU';
@@ -881,7 +885,13 @@ function renderGenericTable(dataKey) {
 
                 const rowCellsHTML = keys.map(k => {
                     let cellVal = row[k];
-                    if (typeof cellVal === 'object' && cellVal !== null) cellVal = JSON.stringify(cellVal);
+                    if (typeof cellVal === 'object' && cellVal !== null) {
+                        if (cellVal.bulan) {
+                            cellVal = `${cellVal.persen} (${cellVal.realisasi}/${cellVal.wajib})`;
+                        } else {
+                            cellVal = JSON.stringify(cellVal);
+                        }
+                    }
                     
                     const kLower = k.toLowerCase();
                     if (kLower.includes('target')) targetVal = Number(cellVal) || 0;
