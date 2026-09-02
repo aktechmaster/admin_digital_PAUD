@@ -856,7 +856,8 @@ function renderGenericTable(dataKey) {
             if (clean === 'nama/key' || clean === 'nama_key' || clean === 'namakey' || clean.includes('nama')) {
                 return (currentActiveDataKey === 'rekapKelas') ? 'NAMA KELOMPOK' : 'NAMA GURU';
             }
-            if (clean === 'jumlahinput') return 'JUMLAH INPUT';
+            if (clean === 'jumlahinput' || clean === 'jumlah input' || clean === 'jumlah_input') return 'JUMLAH INPUT HARI INI';
+            if (clean === 'persen' || clean === 'persentase') return 'PERSENTASE KEHADIRAN KELAS';
             return k.replace(/_/g, ' ').toUpperCase();
         }
 
